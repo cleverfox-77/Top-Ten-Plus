@@ -1,0 +1,266 @@
+import { useEffect, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Printer, ArrowLeft, BellRing, Save } from 'lucide-react'
+import { api } from '../lib/api'
+import { useToast } from '../lib/toast'
+import { t, STATUS_LABELS, PAYMENT_LABELS } from '@shared/labels'
+import { GARMENTS, describeStyle } from '@shared/garments'
+import { STATUS_TONE, STATUS_FLOW } from '../lib/status'
+import { bdt, fmtDate } from '../lib/format'
+import type { Order, OrderItem, OrderStatus } from '@shared/types'
+import { PageHeader, Spinner, StatusBadge } from '../components/ui'
+
+export default function OrderDetail(): JSX.Element {
+  const { id } = useParams()
+  const orderId = Number(id)
+  const toast = useToast()
+  const navigate = useNavigate()
+  const [order, setOrder] = useState<Order | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [paid, setPaid] = useState('')
+
+  const load = (): void => {
+    api.orders
+      .get(orderId)
+      .then((o) => {
+        if (!o) {
+          toast.error('Order not found')
+          navigate('/orders')
+          return
+        }
+        setOrder(o)
+        setPaid(String(o.amount_paid))
+      })
+      .catch((e) => toast.error(e.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    load()
+  }, [orderId])
+
+  const changeStatus = async (s: OrderStatus): Promise<void> => {
+    try {
+      const updated = await api.orders.updateStatus(orderId, s)
+      setOrder(updated)
+      toast.success(`Status → ${STATUS_LABELS[s]}`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed')
+    }
+  }
+
+  const savePayment = async (): Promise<void> => {
+    try {
+      const updated = await api.orders.updatePayment(orderId, Number(paid) || 0)
+      setOrder(updated)
+      toast.success('Payment updated')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed')
+    }
+  }
+
+  const notify = async (): Promise<void> => {
+    try {
+      await api.sms.sendReady(orderId)
+      toast.success('“Ready for pickup” SMS logged')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed')
+    }
+  }
+
+  if (loading || !order) return <Spinner label="Loading order…" />
+
+  return (
+    <div>
+      <div className="no-print">
+        <PageHeader
+          title={`Order #${order.id}`}
+          subtitle={`${order.customer_name} · ${order.customer_phone}`}
+          actions={
+            <>
+              <button className="btn-secondary" onClick={() => navigate('/orders')}>
+                <ArrowLeft size={18} /> Back
+              </button>
+              <button className="btn-secondary" onClick={notify}>
+                <BellRing size={18} /> Notify ready
+              </button>
+              <button className="btn-primary" onClick={() => api.app.print()}>
+                <Printer size={18} /> {t('print')}
+              </button>
+            </>
+          }
+        />
+
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <div className="card p-4">
+            <div className="label">{t('status')}</div>
+            <div className="mb-2">
+              <StatusBadge label={STATUS_LABELS[order.status]} tone={STATUS_TONE[order.status]} />
+            </div>
+            <select
+              className="input"
+              value={order.status}
+              onChange={(e) => changeStatus(e.target.value as OrderStatus)}
+            >
+              {STATUS_FLOW.map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="card p-4">
+            <div className="label">Payment</div>
+            <div className="mb-1 text-sm text-gray-500">
+              {t('total_price')}: <b className="text-gray-800">{bdt(order.total_price)}</b>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                className="input"
+                value={paid}
+                onChange={(e) => setPaid(e.target.value)}
+              />
+              <button className="btn-secondary shrink-0" onClick={savePayment}>
+                <Save size={16} />
+              </button>
+            </div>
+            <div className="mt-1 text-sm">
+              {t('due_amount')}:{' '}
+              <b className={order.due_amount > 0 ? 'text-amber-700' : 'text-green-700'}>
+                {bdt(order.due_amount)}
+              </b>
+            </div>
+          </div>
+
+          <div className="card p-4 text-sm">
+            <div className="label">Details</div>
+            <div className="text-gray-600">
+              {t('order_date')}: {fmtDate(order.order_date)}
+            </div>
+            <div className="text-gray-600">
+              {t('delivery_date')}: {fmtDate(order.expected_delivery_date)}
+            </div>
+            <div className="text-gray-600">
+              {t('payment_method')}: {PAYMENT_LABELS[order.payment_method]}
+            </div>
+            <div className="text-gray-600">Taken by: {order.created_by_name}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Printable order slip / job card (plan §8) */}
+      <OrderSlip order={order} />
+    </div>
+  )
+}
+
+function OrderSlip({ order }: { order: Order }): JSX.Element {
+  return (
+    <div className="print-area card mx-auto max-w-3xl p-8">
+      <div className="mb-4 flex items-start justify-between border-b-2 border-brand-600 pb-3">
+        <div>
+          <div className="text-2xl font-bold text-brand-700">Top Ten Plus</div>
+          <div className="text-sm text-gray-500">Tailors • Fabrics • Fashion</div>
+        </div>
+        <div className="text-right text-sm">
+          <div className="text-lg font-bold">Order #{order.id}</div>
+          <div className="text-gray-600">{t('order_date')}: {fmtDate(order.order_date)}</div>
+          <div className="text-gray-600">
+            {t('delivery_date')}: {fmtDate(order.expected_delivery_date)}
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <div className="font-semibold text-gray-700">Customer</div>
+          <div>{order.customer_name}</div>
+          <div className="text-gray-600">{order.customer_phone}</div>
+        </div>
+        <div className="text-right">
+          <div className="font-semibold text-gray-700">Status</div>
+          <div>{STATUS_LABELS[order.status]}</div>
+          <div className="text-gray-600">Staff: {order.created_by_name}</div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {order.items?.map((it, i) => (
+          <SlipItem key={it.id} item={it} index={i} />
+        ))}
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <table className="text-sm">
+          <tbody>
+            <tr>
+              <td className="py-1 pr-6 text-gray-500">{t('total_price')}</td>
+              <td className="py-1 text-right font-semibold">{bdt(order.total_price)}</td>
+            </tr>
+            <tr>
+              <td className="py-1 pr-6 text-gray-500">{t('amount_paid')}</td>
+              <td className="py-1 text-right">{bdt(order.amount_paid)}</td>
+            </tr>
+            <tr className="border-t border-gray-200">
+              <td className="py-1 pr-6 font-semibold text-gray-700">{t('due_amount')}</td>
+              <td className="py-1 text-right font-bold text-brand-700">{bdt(order.due_amount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-6 border-t border-dashed border-gray-300 pt-3 text-center text-xs text-gray-400">
+        Thank you for choosing Top Ten Plus · {PAYMENT_LABELS[order.payment_method]}
+      </div>
+    </div>
+  )
+}
+
+function SlipItem({ item, index }: { item: OrderItem; index: number }): JSX.Element {
+  const def = GARMENTS[item.garment_type]
+  const measures = def.measurements.filter(
+    (m) => item.measurements[m.key] !== undefined && item.measurements[m.key] !== null && item.measurements[m.key] !== ''
+  )
+  const styles = describeStyle(item.garment_type, item.style_options)
+
+  return (
+    <div className="rounded-lg border border-gray-200 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="font-semibold text-gray-800">
+          {index + 1}. {t(item.garment_type)}
+        </div>
+        <div className="text-sm font-semibold">{bdt(item.price)}</div>
+      </div>
+
+      {measures.length > 0 && (
+        <div className="mb-2 grid grid-cols-4 gap-x-4 gap-y-1 text-xs">
+          {measures.map((m) => (
+            <div key={m.key} className="flex justify-between border-b border-dotted border-gray-200">
+              <span className="text-gray-500">{m.label}</span>
+              <span className="font-medium">{String(item.measurements[m.key])}″</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {styles.length > 0 && (
+        <div className="mb-1 text-xs text-gray-600">
+          <span className="font-medium text-gray-700">Style: </span>
+          {styles.join(' · ')}
+        </div>
+      )}
+
+      {item.fabric_name && (
+        <div className="text-xs text-gray-600">
+          <span className="font-medium text-gray-700">{t('fabric_used')}: </span>
+          {item.fabric_name}
+          {item.fabric_quantity_used
+            ? ` — ${item.fabric_quantity_used} ${item.fabric_unit ?? ''}`
+            : ''}
+        </div>
+      )}
+    </div>
+  )
+}

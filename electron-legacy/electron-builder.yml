@@ -1,0 +1,23 @@
+appId: com.toptenplus.pos
+productName: Top Ten Plus
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+# better-sqlite3 is a native module; keep it unpacked so the .node binary loads.
+asarUnpack:
+  - node_modules/better-sqlite3/**/*
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Top Ten Plus
