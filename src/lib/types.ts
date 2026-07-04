@@ -82,12 +82,20 @@ export interface StockMovement {
   id: number
   fabric_id: number
   fabric_name?: string
+  fabric_unit?: FabricUnit
   change_amount: number // in centimeters; negative = deduction
   reason: 'new_stock' | 'order_deduction' | 'correction'
   reference_order_id: number | null
   created_by: number
   created_by_name?: string
   created_at: string
+}
+
+export interface StockMovementFilters {
+  from?: string | null
+  to?: string | null
+  fabricId?: number | null
+  reason?: 'new_stock' | 'order_deduction' | 'correction' | null
 }
 
 export interface SmsLog {

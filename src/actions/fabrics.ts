@@ -1,13 +1,13 @@
 'use server'
 
-import { and, desc, eq, ilike, lte, or, ne, sql, gt } from 'drizzle-orm'
+import { and, desc, eq, gte, ilike, lte, or, ne, sql, gt } from 'drizzle-orm'
 import { db } from '@/db'
 import { fabrics, stockMovements, users } from '@/db/schema'
 import { requireAuth, requireAdmin } from '@/lib/session'
 import { fabricSchema } from '@/lib/validation'
 import { toBase } from '@/lib/units'
 import { run } from '@/lib/result'
-import type { Fabric, FabricUnit, StockMovement } from '@/lib/types'
+import type { Fabric, FabricUnit, StockMovement, StockMovementFilters } from '@/lib/types'
 
 export async function listFabrics(search?: string) {
   return run<Fabric[]>(async () => {
@@ -171,5 +171,36 @@ export async function fabricMovements(fabricId: number) {
       .innerJoin(users, eq(users.id, stockMovements.created_by))
       .where(eq(stockMovements.fabric_id, fabricId))
       .orderBy(desc(stockMovements.id))
+  })
+}
+
+/** Full stock movement log across all fabrics (audit trail, plan §12). */
+export async function listStockMovements(filters: StockMovementFilters = {}) {
+  return run<StockMovement[]>(async () => {
+    await requireAuth()
+    const conds = []
+    if (filters.from) conds.push(gte(stockMovements.created_at, `${filters.from} 00:00:00`))
+    if (filters.to) conds.push(lte(stockMovements.created_at, `${filters.to} 23:59:59`))
+    if (filters.fabricId) conds.push(eq(stockMovements.fabric_id, filters.fabricId))
+    if (filters.reason) conds.push(eq(stockMovements.reason, filters.reason))
+    return db
+      .select({
+        id: stockMovements.id,
+        fabric_id: stockMovements.fabric_id,
+        fabric_name: fabrics.name,
+        fabric_unit: fabrics.unit,
+        change_amount: stockMovements.change_amount,
+        reason: stockMovements.reason,
+        reference_order_id: stockMovements.reference_order_id,
+        created_by: stockMovements.created_by,
+        created_at: stockMovements.created_at,
+        created_by_name: users.name
+      })
+      .from(stockMovements)
+      .innerJoin(fabrics, eq(fabrics.id, stockMovements.fabric_id))
+      .innerJoin(users, eq(users.id, stockMovements.created_by))
+      .where(conds.length ? and(...conds) : undefined)
+      .orderBy(desc(stockMovements.id))
+      .limit(1000)
   })
 }

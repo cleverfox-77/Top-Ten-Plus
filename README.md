@@ -79,7 +79,11 @@ testing without touching real shop data.
 - **§6–7 Fabric & stock** — multi-unit entry (inch/feet/cm/meter/Gaz), stored in
   centimeters, deducted automatically on order confirmation (a real Postgres
   transaction; overselling is blocked). Admin-only writes.
-- **§8 Printing** — printable order slip / tailor job card (browser print).
+- **§8 Printing** — five branded print views (browser print stylesheet):
+  customer **invoice** (with logo), **tailor job card** per garment (barcode,
+  rack box, compact measurement grid, selected styles only), **stock intake
+  receipt** on adding a fabric, and printable **Sales History** & **Stock
+  History** reports that honour the current filters and carry a report header.
 - **§9 SMS** — auto confirmation + manual "ready" notice. **Gateway stubbed**;
   wire `dispatch()` in `src/lib/sms-util.ts` and set `GATEWAY_ENABLED = true`.
 - **§10 Sales history** — filterable table + CSV export (Excel/Bangla-safe).
@@ -121,3 +125,19 @@ electron-legacy/ the earlier desktop build, kept for reference (not part of this
 3. SMS gateway stubbed — pick a provider and wire `dispatch()`.
 4. Single-breasted options grouped into Bottom shape / Button style / Side vent.
 5. Fabric usage tracked per garment item.
+
+## Print / branding notes
+
+- **Logo:** `public/logo.svg` is a recreation used across the invoice and job
+  card. Drop your exact artwork in as `public/logo.png` and it is used
+  automatically (the `Logo` component prefers `.png`, falls back to `.svg`).
+- **Job-card rack/token number:** printed as a blank circle for staff to write in
+  by hand, since the rack number is assigned physically when the garment is hung.
+  If you confirm the client uses a fixed, reusable pool of rack hooks, this can
+  become an assign-on-intake / release-on-delivery table (a genuinely different
+  data model — worth confirming before building).
+- **Job-card measurement labels** use this app's own captured fields (English),
+  not the sample shop's HB/CF/RB/MS shorthand, so no field is mislabelled from a
+  guessed abbreviation. Swap in shop-specific abbreviations once confirmed.
+- **Long reports:** printing is best for a page or two; for wide date ranges the
+  CSV/Excel export on Sales History stays readable where a printout would not.

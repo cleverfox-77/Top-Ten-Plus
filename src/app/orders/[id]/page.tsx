@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Printer, ArrowLeft, BellRing, Save } from 'lucide-react'
+import { Printer, ArrowLeft, BellRing, Save, Scissors } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t, STATUS_LABELS, PAYMENT_LABELS } from '@/lib/labels'
@@ -11,6 +11,7 @@ import { STATUS_TONE, STATUS_FLOW } from '@/lib/status'
 import { bdt, fmtDate } from '@/lib/format'
 import type { Order, OrderItem, OrderStatus } from '@/lib/types'
 import { PageHeader, Spinner, StatusBadge } from '@/components/ui'
+import Logo from '@/components/Logo'
 
 export default function OrderDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>()
@@ -86,8 +87,14 @@ export default function OrderDetailPage(): JSX.Element {
               <button className="btn-secondary" onClick={notify}>
                 <BellRing size={18} /> Notify ready
               </button>
+              <button
+                className="btn-secondary"
+                onClick={() => router.push(`/print/job-card/${order.id}`)}
+              >
+                <Scissors size={18} /> Job card
+              </button>
               <button className="btn-primary" onClick={() => api.app.print()}>
-                <Printer size={18} /> {t('print')}
+                <Printer size={18} /> Invoice
               </button>
             </>
           }
@@ -162,8 +169,8 @@ function OrderSlip({ order }: { order: Order }): JSX.Element {
     <div className="print-area card mx-auto max-w-3xl p-8">
       <div className="mb-4 flex items-start justify-between border-b-2 border-brand-600 pb-3">
         <div>
-          <div className="text-2xl font-bold text-brand-700">Top Ten Plus</div>
-          <div className="text-sm text-gray-500">Tailors • Fabrics • Fashion</div>
+          <Logo className="mb-1 h-16 w-auto" />
+          <div className="text-sm text-gray-500">Customer Invoice</div>
         </div>
         <div className="text-right text-sm">
           <div className="text-lg font-bold">Order #{order.id}</div>
@@ -215,7 +222,7 @@ function OrderSlip({ order }: { order: Order }): JSX.Element {
       </div>
 
       <div className="mt-6 border-t border-dashed border-gray-300 pt-3 text-center text-xs text-gray-400">
-        Thank you for choosing Top Ten Plus · {PAYMENT_LABELS[order.payment_method]}
+        Thank you for choosing New Top Ten Plus · {PAYMENT_LABELS[order.payment_method]}
       </div>
     </div>
   )

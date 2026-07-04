@@ -14,7 +14,7 @@ interface Label {
 
 const D: Record<string, Label> = {
   // --- General / navigation ---
-  app_name: { en: 'Top Ten Plus' },
+  app_name: { en: 'New Top Ten Plus' },
   tagline: { en: 'Tailors • Fabrics • Fashion' },
   dashboard: { en: 'Dashboard', bn: 'ড্যাশবোর্ড' },
   orders: { en: 'Orders', bn: 'অর্ডার' },

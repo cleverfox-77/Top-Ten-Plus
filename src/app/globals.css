@@ -84,4 +84,15 @@ body {
   .no-print {
     display: none !important;
   }
+  .print-break {
+    break-after: page;
+    page-break-after: always;
+  }
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  @page {
+    margin: 14mm;
+  }
 }

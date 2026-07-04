@@ -5,7 +5,7 @@
 // file, which may only export async functions).
 
 export const GATEWAY_ENABLED = false
-const SHOP = 'Top Ten Plus'
+const SHOP = 'New Top Ten Plus'
 
 export async function dispatch(_phone: string, _message: string): Promise<'sent' | 'failed'> {
   // TODO Phase 2: POST to the chosen gateway's REST API here.

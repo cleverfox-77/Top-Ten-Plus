@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Download, Eye, Filter } from 'lucide-react'
+import { Download, Eye, Filter, Printer } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
@@ -81,15 +81,32 @@ export default function SalesHistoryPage(): JSX.Element {
     if (api.app.exportSalesCsv(data)) toast.success('Exported to CSV')
   }
 
+  const printReport = (): void => {
+    const q = new URLSearchParams()
+    if (f.from) q.set('from', f.from)
+    if (f.to) q.set('to', f.to)
+    if (f.garmentType) q.set('garmentType', f.garmentType)
+    if (f.paymentStatus) q.set('paymentStatus', f.paymentStatus)
+    if (f.status) q.set('status', f.status)
+    if (f.createdBy) q.set('createdBy', f.createdBy)
+    if (f.search) q.set('search', f.search)
+    router.push(`/print/sales?${q.toString()}`)
+  }
+
   return (
     <div>
       <PageHeader
         title={t('sales_history')}
         subtitle="Filter, review and export past orders"
         actions={
-          <button className="btn-secondary" onClick={exportCsv}>
-            <Download size={18} /> Export CSV
-          </button>
+          <>
+            <button className="btn-secondary" onClick={printReport}>
+              <Printer size={18} /> Print
+            </button>
+            <button className="btn-secondary" onClick={exportCsv}>
+              <Download size={18} /> Export CSV
+            </button>
+          </>
         }
       />
 

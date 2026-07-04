@@ -18,7 +18,8 @@ import type {
   DashboardSummary,
   FabricSoldRow,
   StockRow,
-  RevenuePoint
+  RevenuePoint,
+  StockMovementFilters
 } from '@/lib/types'
 
 import { loginAction, logoutAction, sessionAction } from '@/actions/auth'
@@ -60,7 +61,9 @@ export const api = {
       unwrap<Fabric>(await F.addStock(id, qty, unit)),
     correctStock: async (id: number, qty: number, unit: FabricUnit) =>
       unwrap<Fabric>(await F.correctStock(id, qty, unit)),
-    movements: async (id: number) => unwrap<StockMovement[]>(await F.fabricMovements(id))
+    movements: async (id: number) => unwrap<StockMovement[]>(await F.fabricMovements(id)),
+    stockMovements: async (filters: StockMovementFilters) =>
+      unwrap<StockMovement[]>(await F.listStockMovements(filters))
   },
   orders: {
     create: async (input: NewOrderInput) => unwrap<Order>(await O.createOrder(input)),

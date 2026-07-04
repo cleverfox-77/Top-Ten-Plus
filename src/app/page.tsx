@@ -42,7 +42,7 @@ export default function Dashboard(): JSX.Element {
     <div>
       <PageHeader
         title={`Welcome, ${user?.name?.split(' ')[0] ?? ''}`}
-        subtitle="Today at Top Ten Plus"
+        subtitle="Today at New Top Ten Plus"
         actions={
           <Link href="/orders/new" className="btn-primary">
             <PlusCircle size={18} /> New Order

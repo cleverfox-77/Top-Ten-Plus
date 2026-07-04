@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Plus, Pencil, PackagePlus, Wrench, History } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Search, Plus, Pencil, PackagePlus, Wrench, History, Printer } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
@@ -13,6 +14,7 @@ import { bdt, fmtDate } from '@/lib/format'
 
 export default function StockPage(): JSX.Element {
   const { isAdmin } = useAuth()
+  const router = useRouter()
   const toast = useToast()
   const [rows, setRows] = useState<Fabric[]>([])
   const [search, setSearch] = useState('')
@@ -130,6 +132,13 @@ export default function StockPage(): JSX.Element {
                             <History size={16} />
                           </button>
                           <button
+                            title="Print intake receipt"
+                            className="btn-ghost px-2"
+                            onClick={() => router.push(`/print/fabric/${f.id}`)}
+                          >
+                            <Printer size={16} />
+                          </button>
+                          <button
                             title="Edit"
                             className="btn-ghost px-2"
                             onClick={() => {
@@ -154,9 +163,11 @@ export default function StockPage(): JSX.Element {
         open={editOpen}
         fabric={editing}
         onClose={() => setEditOpen(false)}
-        onSaved={() => {
+        onSaved={(saved, isCreate) => {
           setEditOpen(false)
-          load(search)
+          // New fabric → open its printable stock intake receipt straight away.
+          if (isCreate) router.push(`/print/fabric/${saved.id}`)
+          else load(search)
         }}
       />
 
@@ -186,7 +197,7 @@ function FabricModal({
   open: boolean
   fabric: Fabric | null
   onClose: () => void
-  onSaved: () => void
+  onSaved: (saved: Fabric, isCreate: boolean) => void
 }): JSX.Element {
   const toast = useToast()
   const [form, setForm] = useState({
@@ -228,10 +239,11 @@ function FabricModal({
           form.cost_price_per_unit === '' ? null : Number(form.cost_price_per_unit),
         low_stock_threshold: Number(form.low_stock_threshold) || 0
       }
-      if (fabric) await api.fabrics.update(fabric.id, payload)
-      else await api.fabrics.create(payload)
+      const saved = fabric
+        ? await api.fabrics.update(fabric.id, payload)
+        : await api.fabrics.create(payload)
       toast.success(fabric ? 'Fabric updated' : 'Fabric added')
-      onSaved()
+      onSaved(saved, !fabric)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to save')
     } finally {

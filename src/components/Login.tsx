@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth'
 import { Spinner } from '@/components/ui'
+import Logo from '@/components/Logo'
 
 export default function Login(): JSX.Element {
   const { login } = useAuth()
@@ -27,12 +28,8 @@ export default function Login(): JSX.Element {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-700 to-brand-900 p-6">
       <div className="card w-full max-w-md p-8">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-2xl font-bold text-white">
-            T
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Top Ten Plus</h1>
-          <p className="text-sm text-gray-500">Tailors • Fabrics • Fashion</p>
+        <div className="mb-6">
+          <Logo className="mx-auto w-full max-w-[300px]" />
         </div>
 
         <form onSubmit={submit} className="space-y-4">

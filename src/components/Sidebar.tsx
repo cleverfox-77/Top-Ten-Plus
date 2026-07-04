@@ -12,7 +12,8 @@ import {
   BellRing,
   UserCog,
   LogOut,
-  PlusCircle
+  PlusCircle,
+  ScrollText
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { t, ROLE_LABELS } from '@/lib/labels'
@@ -30,7 +31,8 @@ const items: NavItem[] = [
   { href: '/orders/new', label: t('new_order'), icon: <PlusCircle size={18} /> },
   { href: '/orders', label: t('orders'), icon: <ScissorsSquare size={18} />, exact: true },
   { href: '/customers', label: t('customers'), icon: <Users size={18} /> },
-  { href: '/stock', label: t('stock'), icon: <Boxes size={18} /> },
+  { href: '/stock', label: t('stock'), icon: <Boxes size={18} />, exact: true },
+  { href: '/stock-history', label: 'Stock History', icon: <ScrollText size={18} /> },
   { href: '/sales', label: t('sales_history'), icon: <History size={18} /> },
   { href: '/notify', label: t('notify'), icon: <BellRing size={18} /> },
   { href: '/analytics', label: t('analytics'), icon: <BarChart3 size={18} />, adminOnly: true },
@@ -57,7 +59,7 @@ export default function Sidebar(): JSX.Element {
           T
         </div>
         <div>
-          <div className="font-bold leading-tight">Top Ten Plus</div>
+          <div className="font-bold leading-tight">New Top Ten Plus</div>
           <div className="text-[11px] text-gray-400">Tailors • Fabrics • Fashion</div>
         </div>
       </div>
