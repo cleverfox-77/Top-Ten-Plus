@@ -71,7 +71,8 @@ export const orders = pgTable(
     expected_delivery_date: date('expected_delivery_date'),
     status: text('status').$type<OrderStatus>().notNull().default('received'),
     payment_method: text('payment_method').$type<PaymentMethod>().notNull().default('cash'),
-    total_price: doublePrecision('total_price').notNull().default(0),
+    total_price: doublePrecision('total_price').notNull().default(0), // net payable, after discount
+    discount: doublePrecision('discount').notNull().default(0),
     amount_paid: doublePrecision('amount_paid').notNull().default(0),
     due_amount: doublePrecision('due_amount').notNull().default(0),
     due_date: date('due_date'),
@@ -84,6 +85,25 @@ export const orders = pgTable(
     customerIdx: index('idx_orders_customer').on(t.customer_id),
     dateIdx: index('idx_orders_date').on(t.order_date)
   })
+)
+
+// Every payment against an order is a row here (initial deposit, later due
+// payments, and split cash + card/MFS). orders.amount_paid caches the sum.
+export const payments = pgTable(
+  'payments',
+  {
+    id: serial('id').primaryKey(),
+    order_id: integer('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    amount: doublePrecision('amount').notNull(),
+    method: text('method').$type<PaymentMethod>().notNull(),
+    created_by: integer('created_by')
+      .notNull()
+      .references(() => users.id),
+    created_at: timestamp('created_at', { mode: 'string' }).notNull().defaultNow()
+  },
+  (t) => ({ orderIdx: index('idx_payments_order').on(t.order_id) })
 )
 
 export const orderItems = pgTable(

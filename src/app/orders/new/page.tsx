@@ -5,19 +5,19 @@ import { useRouter } from 'next/navigation'
 import { Search, UserPlus, Plus, Trash2, Wand2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
-import { t, PAYMENT_LABELS } from '@/lib/labels'
+import { t } from '@/lib/labels'
 import { GARMENTS, GARMENT_ORDER, StyleControl } from '@/lib/garments'
 import { ALL_UNITS, UNIT_LABELS, fromBase, round2 } from '@/lib/units'
-import type {
-  Customer,
-  Fabric,
-  FabricUnit,
-  GarmentType,
-  PaymentMethod,
-  NewOrderItemInput
-} from '@/lib/types'
+import type { Customer, Fabric, FabricUnit, GarmentType, NewOrderItemInput } from '@/lib/types'
 import { PageHeader, Field, Spinner } from '@/components/ui'
 import CustomerModal from '@/components/CustomerModal'
+import {
+  PaymentLinesEditor,
+  newPayLine,
+  payTotal,
+  toPaymentLines,
+  type PayLine
+} from '@/components/PaymentLinesEditor'
 import { bdt, todayStr } from '@/lib/format'
 
 interface ItemForm {
@@ -53,8 +53,8 @@ export default function NewOrderPage(): JSX.Element {
   const [fabrics, setFabrics] = useState<Fabric[]>([])
   const [items, setItems] = useState<ItemForm[]>([blankItem('coat')])
   const [deliveryDate, setDeliveryDate] = useState('')
-  const [payment, setPayment] = useState<PaymentMethod>('cash')
-  const [amountPaid, setAmountPaid] = useState('')
+  const [discount, setDiscount] = useState('')
+  const [payLines, setPayLines] = useState<PayLine[]>([newPayLine('cash')])
   const [dueDate, setDueDate] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -62,11 +62,14 @@ export default function NewOrderPage(): JSX.Element {
     api.fabrics.list().then(setFabrics).catch((e) => toast.error(e.message))
   }, [])
 
-  const total = useMemo(
+  const subtotal = useMemo(
     () => round2(items.reduce((s, it) => s + (Number(it.price) || 0), 0)),
     [items]
   )
-  const due = round2(Math.max(0, total - (Number(amountPaid) || 0)))
+  const discountVal = round2(Math.min(Math.max(0, Number(discount) || 0), subtotal))
+  const total = round2(subtotal - discountVal)
+  const amountPaid = round2(payTotal(payLines))
+  const due = round2(Math.max(0, total - amountPaid))
 
   const addItem = (): void => setItems((prev) => [...prev, blankItem('coat')])
   const removeItem = (key: number): void =>
@@ -96,8 +99,8 @@ export default function NewOrderPage(): JSX.Element {
       const order = await api.orders.create({
         customer_id: customer.id,
         expected_delivery_date: deliveryDate || null,
-        payment_method: payment,
-        amount_paid: Number(amountPaid) || 0,
+        discount: discountVal,
+        payments: toPaymentLines(payLines),
         due_date: dueDate || deliveryDate || null,
         status: 'received',
         items: payloadItems
@@ -151,36 +154,35 @@ export default function NewOrderPage(): JSX.Element {
               />
             </Field>
 
-            <div className="mt-4">
-              <Field label={t('payment_method')}>
-                <select
-                  className="input"
-                  value={payment}
-                  onChange={(e) => setPayment(e.target.value as PaymentMethod)}
-                >
-                  {Object.keys(PAYMENT_LABELS).map((p) => (
-                    <option key={p} value={p}>
-                      {PAYMENT_LABELS[p]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
             <div className="my-4 space-y-2 border-y border-gray-100 py-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500">{t('total_price')}</span>
-                <span className="font-semibold">{bdt(total)}</span>
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-semibold">{bdt(subtotal)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500">{t('amount_paid')}</span>
+                <span className="text-gray-500">Discount</span>
                 <input
                   type="number"
                   className="input w-28 text-right"
-                  value={amountPaid}
+                  value={discount}
                   placeholder="0"
-                  onChange={(e) => setAmountPaid(e.target.value)}
+                  onChange={(e) => setDiscount(e.target.value)}
                 />
+              </div>
+              <div className="flex justify-between border-t border-gray-100 pt-2">
+                <span className="text-gray-500">{t('total_price')}</span>
+                <span className="font-semibold">{bdt(total)}</span>
+              </div>
+            </div>
+
+            <Field label="Payment received" hint="Split across cash + card/MFS if needed">
+              <PaymentLinesEditor lines={payLines} onChange={setPayLines} />
+            </Field>
+
+            <div className="mt-3 space-y-1 border-t border-gray-100 pt-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">{t('amount_paid')}</span>
+                <span className="font-semibold">{bdt(amountPaid)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">{t('due_amount')}</span>

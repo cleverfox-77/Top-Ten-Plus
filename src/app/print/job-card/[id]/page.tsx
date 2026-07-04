@@ -11,6 +11,7 @@ import type { Order, OrderItem } from '@/lib/types'
 import { Spinner } from '@/components/ui'
 import { PrintToolbar, Barcode, DISCLAIMER } from '@/components/print'
 import Logo from '@/components/Logo'
+import GarmentDiagram from '@/components/GarmentDiagram'
 
 export default function JobCardPrint(): JSX.Element {
   const params = useParams<{ id: string }>()
@@ -128,33 +129,45 @@ function JobCard({
         </div>
       </div>
 
-      {/* Measurements — labeled grid, works for every garment type */}
-      <div className="mb-3">
-        <div className="mb-1 text-[10px] font-semibold uppercase text-gray-500">
-          Measurements (inches)
+      {/* Visual style + measurements side by side */}
+      <div className="mb-3 flex gap-4">
+        {/* Garment diagram — the visual the tailor reads */}
+        <div className="w-1/3 shrink-0">
+          <div className="mb-1 text-[10px] font-semibold uppercase text-gray-500">Style (visual)</div>
+          <GarmentDiagram
+            type={item.garment_type}
+            style={item.style_options}
+            className="h-40 w-full print-avoid-break"
+          />
         </div>
-        {measures.length === 0 ? (
-          <div className="text-xs text-gray-400">No measurements recorded.</div>
-        ) : (
-          <div className="grid grid-cols-5 gap-x-3 gap-y-2">
-            {measures.map((m) => (
-              <div key={m.key} className="border border-gray-300 px-2 py-1 text-center">
-                <div className="text-[9px] uppercase leading-tight text-gray-500">{en(m.key)}</div>
-                <div className="text-sm font-bold">{String(item.measurements[m.key])}</div>
-              </div>
-            ))}
+        {/* Measurements — labeled grid, works for every garment type */}
+        <div className="flex-1">
+          <div className="mb-1 text-[10px] font-semibold uppercase text-gray-500">
+            Measurements (inches)
           </div>
-        )}
+          {measures.length === 0 ? (
+            <div className="text-xs text-gray-400">No measurements recorded.</div>
+          ) : (
+            <div className="grid grid-cols-4 gap-x-2 gap-y-2">
+              {measures.map((m) => (
+                <div key={m.key} className="border border-gray-300 px-2 py-1 text-center">
+                  <div className="text-[9px] uppercase leading-tight text-gray-500">{en(m.key)}</div>
+                  <div className="text-sm font-bold">{String(item.measurements[m.key])}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Style options — only the selected ones */}
+      {/* Style options — text legend alongside the diagram */}
       {styles.length > 0 && (
         <div className="mb-3">
-          <div className="mb-1 text-[10px] font-semibold uppercase text-gray-500">Style</div>
+          <div className="mb-1 text-[10px] font-semibold uppercase text-gray-500">Style details</div>
           <div className="flex flex-wrap gap-1.5">
-            {styles.map((s, i) => (
+            {styles.map((st, i) => (
               <span key={i} className="border border-gray-400 px-2 py-0.5 text-xs">
-                {s}
+                {st}
               </span>
             ))}
           </div>

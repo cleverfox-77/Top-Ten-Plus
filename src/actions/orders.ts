@@ -4,9 +4,8 @@ import { and, desc, eq, gt, gte, ilike, inArray, lte, or, sql } from 'drizzle-or
 import { db } from '@/db'
 import { orders, orderItems, customers, users } from '@/db/schema'
 import { requireAuth } from '@/lib/session'
-import { round2 } from '@/lib/units'
 import { run } from '@/lib/result'
-import { hydrate, createOrderCore } from '@/lib/order-core'
+import { hydrate, createOrderCore, recordPaymentCore } from '@/lib/order-core'
 import type { Order, OrderStatus, GarmentType, OrderFilters } from '@/lib/types'
 
 export async function getOrder(id: number) {
@@ -114,19 +113,10 @@ export async function updateOrderStatus(id: number, status: OrderStatus) {
   })
 }
 
-export async function updateOrderPayment(id: number, amountPaid: number) {
+/** Record one or more payments received against an order's balance (§5). */
+export async function recordPayment(input: unknown) {
   return run<Order>(async () => {
-    await requireAuth()
-    if (amountPaid < 0) throw new Error('Amount paid cannot be negative')
-    const [order] = await db
-      .select({ total_price: orders.total_price })
-      .from(orders)
-      .where(eq(orders.id, id))
-      .limit(1)
-    if (!order) throw new Error('Order not found')
-    const paid = round2(amountPaid)
-    const due = round2(Math.max(0, order.total_price - paid))
-    await db.update(orders).set({ amount_paid: paid, due_amount: due }).where(eq(orders.id, id))
-    return (await hydrate(id))!
+    const user = await requireAuth()
+    return recordPaymentCore(user.id, input)
   })
 }

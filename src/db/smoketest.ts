@@ -3,8 +3,8 @@ config({ path: '.env.local' })
 
 import { eq, inArray } from 'drizzle-orm'
 import { db } from './index'
-import { users, customers, fabrics, orders, stockMovements, smsLog } from './schema'
-import { createOrderCore } from '@/lib/order-core'
+import { users, customers, fabrics, orders, stockMovements, smsLog, payments } from './schema'
+import { createOrderCore, recordPaymentCore } from '@/lib/order-core'
 import { toBase, round2 } from '@/lib/units'
 
 let failures = 0
@@ -36,8 +36,11 @@ async function main(): Promise<void> {
   const order = await createOrderCore(admin.id, {
     customer_id: customer.id,
     expected_delivery_date: '2026-07-20',
-    payment_method: 'cash',
-    amount_paid: 2000,
+    discount: 500, // subtotal 5000 - 500 = 4500 net
+    payments: [
+      { method: 'cash', amount: 1000 },
+      { method: 'bkash', amount: 1000 }
+    ], // split payment, 2000 paid
     due_date: '2026-07-20',
     status: 'received',
     items: [
@@ -53,14 +56,29 @@ async function main(): Promise<void> {
     ]
   })
   check('order created', order.id > 0)
-  check('total computed', order.total_price === 5000, `got ${order.total_price}`)
-  check('due computed', order.due_amount === 3000, `got ${order.due_amount}`)
+  check('discount stored', order.discount === 500, `got ${order.discount}`)
+  check('total after discount', order.total_price === 4500, `got ${order.total_price}`)
+  check('split payment recorded (2 lines)', order.payments?.length === 2, `got ${order.payments?.length}`)
+  check('amount paid = sum of split', order.amount_paid === 2000, `got ${order.amount_paid}`)
+  check('due computed', order.due_amount === 2500, `got ${order.due_amount}`)
   check('order item persisted', order.items?.length === 1)
   check('measurements persisted (jsonb)', order.items?.[0].measurements.chest === 40)
   check(
     'style persisted (jsonb)',
     order.items?.[0].style_options.garment_style === 'single_breasted'
   )
+
+  // Record a later due payment (split cash + card), clearing the balance.
+  const afterPay = await recordPaymentCore(admin.id, {
+    order_id: order.id,
+    payments: [
+      { method: 'cash', amount: 1500 },
+      { method: 'card', amount: 1000 }
+    ]
+  })
+  check('due payment recorded (now 4 payments)', afterPay.payments?.length === 4, `got ${afterPay.payments?.length}`)
+  check('balance cleared after due payment', afterPay.due_amount === 0, `got ${afterPay.due_amount}`)
+  check('amount paid = full total', afterPay.amount_paid === 4500, `got ${afterPay.amount_paid}`)
 
   const [fabricAfter] = await db.select().from(fabrics).where(eq(fabrics.id, 1)).limit(1)
   const expected = round2(beforeQty - toBase(usedGaz, 'gaz'))
@@ -86,8 +104,8 @@ async function main(): Promise<void> {
     await createOrderCore(admin.id, {
       customer_id: customer.id,
       expected_delivery_date: null,
-      payment_method: 'cash',
-      amount_paid: 0,
+      discount: 0,
+      payments: [],
       due_date: null,
       status: 'received',
       items: [

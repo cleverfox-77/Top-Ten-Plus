@@ -47,12 +47,17 @@ export const orderItemSchema = z.object({
   price: z.number().nonnegative('Price cannot be negative')
 })
 
+export const paymentLineSchema = z.object({
+  method: paymentMethodSchema,
+  amount: z.number().nonnegative()
+})
+
 export const newOrderSchema = z
   .object({
     customer_id: z.number().int().positive('A customer is required'),
     expected_delivery_date: z.string().nullable(),
-    payment_method: paymentMethodSchema,
-    amount_paid: z.number().nonnegative(),
+    discount: z.number().nonnegative('Discount cannot be negative').default(0),
+    payments: z.array(paymentLineSchema).default([]),
     due_date: z.string().nullable(),
     status: orderStatusSchema,
     items: z.array(orderItemSchema).min(1, 'Add at least one garment')
@@ -61,6 +66,12 @@ export const newOrderSchema = z
     (o) => o.items.every((it) => it.fabric_id === null || it.fabric_quantity_used !== null),
     { message: 'Enter the fabric quantity used for each garment that has a fabric selected' }
   )
+
+// A batch of payments received later against an order's balance.
+export const recordPaymentSchema = z.object({
+  order_id: z.number().int().positive(),
+  payments: z.array(paymentLineSchema).min(1, 'Add at least one payment')
+})
 
 export const loginSchema = z.object({
   username: z.string().trim().min(1),

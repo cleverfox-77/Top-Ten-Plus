@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Printer, ArrowLeft, BellRing, Save, Scissors } from 'lucide-react'
+import { Printer, ArrowLeft, BellRing, Scissors } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t, STATUS_LABELS, PAYMENT_LABELS } from '@/lib/labels'
@@ -12,6 +12,13 @@ import { bdt, fmtDate } from '@/lib/format'
 import type { Order, OrderItem, OrderStatus } from '@/lib/types'
 import { PageHeader, Spinner, StatusBadge } from '@/components/ui'
 import Logo from '@/components/Logo'
+import {
+  PaymentLinesEditor,
+  newPayLine,
+  payTotal,
+  toPaymentLines,
+  type PayLine
+} from '@/components/PaymentLinesEditor'
 
 export default function OrderDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>()
@@ -20,7 +27,8 @@ export default function OrderDetailPage(): JSX.Element {
   const router = useRouter()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
-  const [paid, setPaid] = useState('')
+  const [payLines, setPayLines] = useState<PayLine[]>([newPayLine('cash')])
+  const [savingPay, setSavingPay] = useState(false)
 
   const load = (): void => {
     api.orders
@@ -32,7 +40,6 @@ export default function OrderDetailPage(): JSX.Element {
           return
         }
         setOrder(o)
-        setPaid(String(o.amount_paid))
       })
       .catch((e) => toast.error(e.message))
       .finally(() => setLoading(false))
@@ -52,13 +59,22 @@ export default function OrderDetailPage(): JSX.Element {
     }
   }
 
-  const savePayment = async (): Promise<void> => {
+  const recordPayment = async (): Promise<void> => {
+    const lines = toPaymentLines(payLines)
+    if (lines.length === 0) {
+      toast.error('Enter a payment amount')
+      return
+    }
+    setSavingPay(true)
     try {
-      const updated = await api.orders.updatePayment(orderId, Number(paid) || 0)
+      const updated = await api.orders.recordPayment(orderId, lines)
       setOrder(updated)
-      toast.success('Payment updated')
+      setPayLines([newPayLine('cash')])
+      toast.success('Payment recorded')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setSavingPay(false)
     }
   }
 
@@ -119,27 +135,29 @@ export default function OrderDetailPage(): JSX.Element {
             </select>
           </div>
 
-          <div className="card p-4">
+          <div className="card p-4 text-sm">
             <div className="label">Payment</div>
-            <div className="mb-1 text-sm text-gray-500">
-              {t('total_price')}: <b className="text-gray-800">{bdt(order.total_price)}</b>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                className="input"
-                value={paid}
-                onChange={(e) => setPaid(e.target.value)}
-              />
-              <button className="btn-secondary shrink-0" onClick={savePayment}>
-                <Save size={16} />
-              </button>
-            </div>
-            <div className="mt-1 text-sm">
-              {t('due_amount')}:{' '}
-              <b className={order.due_amount > 0 ? 'text-amber-700' : 'text-green-700'}>
-                {bdt(order.due_amount)}
-              </b>
+            <div className="space-y-0.5">
+              <div className="flex justify-between text-gray-600">
+                <span>{t('total_price')}</span>
+                <b className="text-gray-800">{bdt(order.total_price)}</b>
+              </div>
+              {order.discount > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>Discount</span>
+                  <span>− {bdt(order.discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-gray-600">
+                <span>{t('amount_paid')}</span>
+                <b className="text-green-700">{bdt(order.amount_paid)}</b>
+              </div>
+              <div className="flex justify-between border-t border-gray-100 pt-1 text-gray-600">
+                <span>{t('due_amount')}</span>
+                <b className={order.due_amount > 0 ? 'text-amber-700' : 'text-green-700'}>
+                  {bdt(order.due_amount)}
+                </b>
+              </div>
             </div>
           </div>
 
@@ -155,6 +173,61 @@ export default function OrderDetailPage(): JSX.Element {
               {t('payment_method')}: {PAYMENT_LABELS[order.payment_method]}
             </div>
             <div className="text-gray-600">Taken by: {order.created_by_name}</div>
+          </div>
+        </div>
+
+        {/* Payments ledger + record a due payment (§5) */}
+        <div className="mb-6 grid gap-4 md:grid-cols-2">
+          <div className="card p-4">
+            <div className="label">Payments received</div>
+            {order.payments && order.payments.length > 0 ? (
+              <table className="w-full text-sm">
+                <tbody className="divide-y divide-gray-100">
+                  {order.payments.map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-1.5 text-gray-500">{fmtDate(p.created_at)}</td>
+                      <td className="py-1.5">{PAYMENT_LABELS[p.method]}</td>
+                      <td className="py-1.5 text-right font-medium">{bdt(p.amount)}</td>
+                      <td className="py-1.5 text-right text-xs text-gray-400">{p.created_by_name}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t-2 border-gray-200 font-semibold">
+                  <tr>
+                    <td className="py-1.5" colSpan={2}>
+                      Total paid
+                    </td>
+                    <td className="py-1.5 text-right">{bdt(order.amount_paid)}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            ) : (
+              <p className="text-sm text-gray-400">No payments recorded yet.</p>
+            )}
+          </div>
+
+          <div className="card p-4">
+            <div className="label">
+              Record due payment{' '}
+              {order.due_amount > 0 && (
+                <span className="text-amber-700">({bdt(order.due_amount)} due)</span>
+              )}
+            </div>
+            {order.due_amount > 0 ? (
+              <>
+                <PaymentLinesEditor lines={payLines} onChange={setPayLines} />
+                <button
+                  className="btn-primary mt-3 w-full"
+                  onClick={recordPayment}
+                  disabled={savingPay}
+                >
+                  {savingPay ? <Spinner /> : `Receive ${bdt(payTotal(payLines))}`}
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-green-700">This order is fully paid. 🎉</p>
+            )}
           </div>
         </div>
       </div>
@@ -206,9 +279,27 @@ function OrderSlip({ order }: { order: Order }): JSX.Element {
         <table className="text-sm">
           <tbody>
             <tr>
-              <td className="py-1 pr-6 text-gray-500">{t('total_price')}</td>
+              <td className="py-1 pr-6 text-gray-500">Subtotal</td>
+              <td className="py-1 text-right">{bdt(order.total_price + order.discount)}</td>
+            </tr>
+            {order.discount > 0 && (
+              <tr>
+                <td className="py-1 pr-6 text-gray-500">Discount</td>
+                <td className="py-1 text-right">− {bdt(order.discount)}</td>
+              </tr>
+            )}
+            <tr className="border-t border-gray-200">
+              <td className="py-1 pr-6 font-semibold text-gray-700">{t('total_price')}</td>
               <td className="py-1 text-right font-semibold">{bdt(order.total_price)}</td>
             </tr>
+            {(order.payments ?? []).map((p) => (
+              <tr key={p.id}>
+                <td className="py-0.5 pr-6 text-xs text-gray-400">
+                  Paid · {PAYMENT_LABELS[p.method]} · {fmtDate(p.created_at)}
+                </td>
+                <td className="py-0.5 text-right text-xs text-gray-500">{bdt(p.amount)}</td>
+              </tr>
+            ))}
             <tr>
               <td className="py-1 pr-6 text-gray-500">{t('amount_paid')}</td>
               <td className="py-1 text-right">{bdt(order.amount_paid)}</td>
@@ -222,7 +313,7 @@ function OrderSlip({ order }: { order: Order }): JSX.Element {
       </div>
 
       <div className="mt-6 border-t border-dashed border-gray-300 pt-3 text-center text-xs text-gray-400">
-        Thank you for choosing New Top Ten Plus · {PAYMENT_LABELS[order.payment_method]}
+        Thank you for choosing New Top Ten Plus
       </div>
     </div>
   )

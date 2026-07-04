@@ -14,6 +14,7 @@ import type {
   SmsLog,
   GarmentType,
   NewOrderInput,
+  PaymentLine,
   OrderFilters,
   DashboardSummary,
   FabricSoldRow,
@@ -71,8 +72,8 @@ export const api = {
     get: async (id: number) => unwrap<Order | undefined>(await O.getOrder(id)),
     updateStatus: async (id: number, status: OrderStatus) =>
       unwrap<Order>(await O.updateOrderStatus(id, status)),
-    updatePayment: async (id: number, paid: number) =>
-      unwrap<Order>(await O.updateOrderPayment(id, paid))
+    recordPayment: async (orderId: number, lines: PaymentLine[]) =>
+      unwrap<Order>(await O.recordPayment({ order_id: orderId, payments: lines }))
   },
   sms: {
     sendReady: async (orderId: number) => unwrap<SmsLog>(await S.sendReadyNotice(orderId)),

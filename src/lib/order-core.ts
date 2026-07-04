@@ -1,12 +1,21 @@
 import { eq, sql } from 'drizzle-orm'
 import { db } from '@/db'
-import { orders, orderItems, fabrics, stockMovements, smsLog, customers, users } from '@/db/schema'
-import { newOrderSchema } from '@/lib/validation'
+import {
+  orders,
+  orderItems,
+  fabrics,
+  stockMovements,
+  smsLog,
+  payments,
+  customers,
+  users
+} from '@/db/schema'
+import { newOrderSchema, recordPaymentSchema } from '@/lib/validation'
 import { toBase, round2 } from '@/lib/units'
 import { GATEWAY_ENABLED, buildConfirmationMessage } from '@/lib/sms-util'
-import type { Order, OrderItem } from '@/lib/types'
+import type { Order, OrderItem, Payment } from '@/lib/types'
 
-/** Load a full order with joined customer/staff names and its items. */
+/** Load a full order with joined customer/staff names, items and payments. */
 export async function hydrate(orderId: number): Promise<Order | undefined> {
   const [order] = await db
     .select({
@@ -17,6 +26,7 @@ export async function hydrate(orderId: number): Promise<Order | undefined> {
       status: orders.status,
       payment_method: orders.payment_method,
       total_price: orders.total_price,
+      discount: orders.discount,
       amount_paid: orders.amount_paid,
       due_amount: orders.due_amount,
       due_date: orders.due_date,
@@ -51,21 +61,40 @@ export async function hydrate(orderId: number): Promise<Order | undefined> {
     .where(eq(orderItems.order_id, orderId))
     .orderBy(orderItems.id)) as OrderItem[]
 
-  return { ...order, items }
+  const paymentRows = (await db
+    .select({
+      id: payments.id,
+      order_id: payments.order_id,
+      amount: payments.amount,
+      method: payments.method,
+      created_by: payments.created_by,
+      created_at: payments.created_at,
+      created_by_name: users.name
+    })
+    .from(payments)
+    .innerJoin(users, eq(users.id, payments.created_by))
+    .where(eq(payments.order_id, orderId))
+    .orderBy(payments.id)) as Payment[]
+
+  return { ...order, items, payments: paymentRows }
 }
 
 /**
- * Core order-creation logic (plan §3, §6, §9): validate, then in a single
- * transaction insert the order + items, deduct fabric stock with an audit
- * movement, and log the confirmation SMS. Separated from the server action so it
- * can be unit-tested against a real database.
+ * Core order-creation logic (plan §3, §5, §6, §9): validate, then in a single
+ * transaction insert the order + items, record the initial payment(s) — which
+ * may be split across cash + card/MFS — deduct fabric stock with an audit
+ * movement, and log the confirmation SMS.
  */
 export async function createOrderCore(userId: number, input: unknown): Promise<Order> {
   const data = newOrderSchema.parse(input)
 
-  const totalPrice = round2(data.items.reduce((s, it) => s + it.price, 0))
-  const amountPaid = round2(data.amount_paid)
+  const subtotal = round2(data.items.reduce((s, it) => s + it.price, 0))
+  const discount = round2(Math.min(Math.max(0, data.discount), subtotal))
+  const totalPrice = round2(subtotal - discount)
+  const paidLines = data.payments.filter((p) => p.amount > 0)
+  const amountPaid = round2(paidLines.reduce((s, p) => s + p.amount, 0))
   const dueAmount = round2(Math.max(0, totalPrice - amountPaid))
+  const primaryMethod = paidLines[0]?.method ?? 'cash'
 
   const newId = await db.transaction(async (tx) => {
     const [order] = await tx
@@ -74,8 +103,9 @@ export async function createOrderCore(userId: number, input: unknown): Promise<O
         customer_id: data.customer_id,
         expected_delivery_date: data.expected_delivery_date,
         status: data.status,
-        payment_method: data.payment_method,
+        payment_method: primaryMethod,
         total_price: totalPrice,
+        discount,
         amount_paid: amountPaid,
         due_amount: dueAmount,
         due_date: data.due_date,
@@ -84,6 +114,12 @@ export async function createOrderCore(userId: number, input: unknown): Promise<O
       .returning({ id: orders.id })
 
     const orderId = order.id
+
+    for (const p of paidLines) {
+      await tx
+        .insert(payments)
+        .values({ order_id: orderId, amount: round2(p.amount), method: p.method, created_by: userId })
+    }
 
     for (const it of data.items) {
       await tx.insert(orderItems).values({
@@ -138,4 +174,48 @@ export async function createOrderCore(userId: number, input: unknown): Promise<O
   const created = await hydrate(newId)
   if (!created) throw new Error('Order created but could not be loaded')
   return created
+}
+
+/**
+ * Record one or more payments received later against an order's balance
+ * (plan §5 advance/due). Supports splitting across cash + card/MFS.
+ */
+export async function recordPaymentCore(userId: number, input: unknown): Promise<Order> {
+  const data = recordPaymentSchema.parse(input)
+  const lines = data.payments.filter((p) => p.amount > 0)
+  if (lines.length === 0) throw new Error('Enter a payment amount greater than zero')
+
+  await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({ total_price: orders.total_price })
+      .from(orders)
+      .where(eq(orders.id, data.order_id))
+      .limit(1)
+    if (!order) throw new Error('Order not found')
+
+    for (const p of lines) {
+      await tx.insert(payments).values({
+        order_id: data.order_id,
+        amount: round2(p.amount),
+        method: p.method,
+        created_by: userId
+      })
+    }
+
+    const [{ paid }] = await tx
+      .select({ paid: sql<number>`coalesce(sum(${payments.amount}),0)::float8` })
+      .from(payments)
+      .where(eq(payments.order_id, data.order_id))
+    const amountPaid = round2(Number(paid))
+    const due = round2(Math.max(0, order.total_price - amountPaid))
+
+    await tx
+      .update(orders)
+      .set({ amount_paid: amountPaid, due_amount: due })
+      .where(eq(orders.id, data.order_id))
+  })
+
+  const updated = await hydrate(data.order_id)
+  if (!updated) throw new Error('Order not found')
+  return updated
 }

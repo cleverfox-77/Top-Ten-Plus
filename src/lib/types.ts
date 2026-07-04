@@ -58,6 +58,16 @@ export interface OrderItem {
   price: number
 }
 
+export interface Payment {
+  id: number
+  order_id: number
+  amount: number
+  method: PaymentMethod
+  created_by: number
+  created_by_name?: string
+  created_at: string
+}
+
 export interface Order {
   id: number
   customer_id: number
@@ -65,7 +75,8 @@ export interface Order {
   expected_delivery_date: string | null
   status: OrderStatus
   payment_method: PaymentMethod
-  total_price: number
+  total_price: number // net payable, after discount
+  discount: number
   amount_paid: number
   due_amount: number
   due_date: string | null
@@ -76,6 +87,7 @@ export interface Order {
   customer_phone?: string
   created_by_name?: string
   items?: OrderItem[]
+  payments?: Payment[]
 }
 
 export interface StockMovement {
@@ -122,11 +134,16 @@ export interface NewOrderItemInput {
   price: number
 }
 
+export interface PaymentLine {
+  method: PaymentMethod
+  amount: number
+}
+
 export interface NewOrderInput {
   customer_id: number
   expected_delivery_date: string | null
-  payment_method: PaymentMethod
-  amount_paid: number
+  discount: number
+  payments: PaymentLine[]
   due_date: string | null
   status: OrderStatus
   items: NewOrderItemInput[]
