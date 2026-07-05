@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, UserPlus, Plus, Trash2, Wand2 } from 'lucide-react'
+import { Search, UserPlus, Plus, Trash2, Wand2, ScanLine } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t } from '@/lib/labels'
@@ -358,6 +358,21 @@ function GarmentCard({
   }
 
   const selectedFabric = fabrics.find((f) => f.id === item.fabric_id) || null
+  const [scan, setScan] = useState('')
+
+  // Barcode scanners type the product ID then press Enter — look it up and select.
+  const handleScan = (code: string): void => {
+    const q = code.trim().toLowerCase()
+    if (!q) return
+    const fab = fabrics.find((f) => f.product_id.toLowerCase() === q)
+    if (!fab) {
+      toast.error(`No fabric found for barcode "${code.trim()}"`)
+      return
+    }
+    onChange({ fabric_id: fab.id, fabric_unit: fab.unit })
+    setScan('')
+    toast.success(`Selected ${fab.name}`)
+  }
 
   return (
     <div className="card p-5">
@@ -422,26 +437,47 @@ function GarmentCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-3 border-t border-gray-100 pt-4">
-        <div className="col-span-5">
-          <label className="mb-1 block text-xs text-gray-500">{t('fabric_used')}</label>
-          <select
-            className="input"
-            value={item.fabric_id ?? ''}
-            onChange={(e) => {
-              const id = e.target.value ? Number(e.target.value) : null
-              const fab = fabrics.find((f) => f.id === id)
-              onChange({ fabric_id: id, fabric_unit: fab ? fab.unit : null })
-            }}
-          >
-            <option value="">— none —</option>
-            {fabrics.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name} ({round2(fromBase(f.quantity_base, f.unit))} {f.unit} left)
-              </option>
-            ))}
-          </select>
+      <div className="border-t border-gray-100 pt-4">
+        {/* Barcode scan — scan a fabric roll's barcode to select it */}
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-gray-500">Scan fabric barcode</label>
+          <div className="relative max-w-xs">
+            <ScanLine className="absolute left-3 top-2.5 text-gray-400" size={16} />
+            <input
+              className="input pl-9"
+              placeholder="Scan or type barcode, then Enter"
+              value={scan}
+              onChange={(e) => setScan(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleScan(scan)
+                }
+              }}
+            />
+          </div>
         </div>
+
+        <div className="grid grid-cols-12 gap-3">
+          <div className="col-span-5">
+            <label className="mb-1 block text-xs text-gray-500">{t('fabric_used')}</label>
+            <select
+              className="input"
+              value={item.fabric_id ?? ''}
+              onChange={(e) => {
+                const id = e.target.value ? Number(e.target.value) : null
+                const fab = fabrics.find((f) => f.id === id)
+                onChange({ fabric_id: id, fabric_unit: fab ? fab.unit : null })
+              }}
+            >
+              <option value="">— none —</option>
+              {fabrics.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name} ({round2(fromBase(f.quantity_base, f.unit))} {f.unit} left)
+                </option>
+              ))}
+            </select>
+          </div>
         <div className="col-span-2">
           <label className="mb-1 block text-xs text-gray-500">{t('quantity')}</label>
           <input
@@ -478,6 +514,22 @@ function GarmentCard({
             onChange={(e) => onChange({ price: e.target.value })}
           />
         </div>
+        </div>
+        {selectedFabric?.selling_price_per_unit != null && (
+          <div className="mt-2 text-xs text-gray-500">
+            Selling price:{' '}
+            <b className="text-gray-700">{bdt(selectedFabric.selling_price_per_unit)}</b> /{' '}
+            {selectedFabric.unit}
+            {Number(item.fabric_quantity_used) > 0 && (
+              <>
+                {' · '}Fabric charge ≈{' '}
+                <b className="text-gray-700">
+                  {bdt(round2(Number(item.fabric_quantity_used) * selectedFabric.selling_price_per_unit))}
+                </b>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

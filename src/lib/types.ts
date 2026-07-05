@@ -41,6 +41,7 @@ export interface Fabric {
   unit: FabricUnit // preferred display/entry unit
   quantity_base: number // stored internally in centimeters
   cost_price_per_unit: number | null // BDT per display unit
+  selling_price_per_unit: number | null // BDT per display unit
   low_stock_threshold: number // stored in centimeters
   created_at: string
 }

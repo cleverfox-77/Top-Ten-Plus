@@ -65,6 +65,7 @@ const D: Record<string, Label> = {
   belly: { en: 'Belly', bn: 'পেট' },
   hip: { en: 'Hip', bn: 'হিপ' },
   shoulder: { en: 'Shoulder', bn: 'কাঁধ' },
+  neck: { en: 'Neck', bn: 'গলা' },
   waist: { en: 'Waist', bn: 'কোমর' },
   thigh: { en: 'Thigh', bn: 'রান' },
   body: { en: 'Body', bn: 'শরীর' },
@@ -86,6 +87,8 @@ const D: Record<string, Label> = {
   quantity: { en: 'Quantity', bn: 'পরিমাণ' },
   unit: { en: 'Unit', bn: 'একক' },
   cost_price: { en: 'Cost Price / Unit', bn: 'ক্রয়মূল্য' },
+  total_cost: { en: 'Total Cost', bn: 'মোট খরচ' },
+  selling_price: { en: 'Selling Price / Unit', bn: 'বিক্রয়মূল্য' },
   low_stock_threshold: { en: 'Low-stock Threshold', bn: 'কম-স্টক সীমা' },
   in_stock: { en: 'In Stock', bn: 'স্টকে আছে' },
   fabric_used: { en: 'Fabric Used', bn: 'ব্যবহৃত কাপড়' }

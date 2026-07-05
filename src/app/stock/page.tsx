@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Plus, Pencil, PackagePlus, Wrench, History, Printer } from 'lucide-react'
+import { Search, Plus, Pencil, PackagePlus, Wrench, History, Printer, Barcode } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
@@ -86,6 +86,7 @@ export default function StockPage(): JSX.Element {
                 <th className="th">{t('color')}</th>
                 <th className="th text-right">{t('in_stock')}</th>
                 <th className="th text-right">{t('cost_price')}</th>
+                <th className="th text-right">{t('selling_price')}</th>
                 {isAdmin && <th className="th"></th>}
               </tr>
             </thead>
@@ -106,6 +107,9 @@ export default function StockPage(): JSX.Element {
                     </td>
                     <td className="td text-right text-gray-600">
                       {f.cost_price_per_unit != null ? bdt(f.cost_price_per_unit) : '—'}
+                    </td>
+                    <td className="td text-right font-medium text-gray-800">
+                      {f.selling_price_per_unit != null ? bdt(f.selling_price_per_unit) : '—'}
                     </td>
                     {isAdmin && (
                       <td className="td">
@@ -137,6 +141,13 @@ export default function StockPage(): JSX.Element {
                             onClick={() => router.push(`/print/fabric/${f.id}`)}
                           >
                             <Printer size={16} />
+                          </button>
+                          <button
+                            title="Print barcode stickers"
+                            className="btn-ghost px-2"
+                            onClick={() => router.push(`/print/barcode/${f.id}`)}
+                          >
+                            <Barcode size={16} />
                           </button>
                           <button
                             title="Edit"
@@ -207,24 +218,46 @@ function FabricModal({
     unit: 'gaz' as FabricUnit,
     quantity: 0,
     cost_price_per_unit: '' as string,
+    total_cost: '' as string,
+    selling_price_per_unit: '' as string,
     low_stock_threshold: 0
   })
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (open) {
+      const qty = fabric ? round2(fromBase(fabric.quantity_base, fabric.unit)) : 0
+      const cost = fabric?.cost_price_per_unit
       setForm({
         product_id: fabric?.product_id ?? '',
         name: fabric?.name ?? '',
         color: fabric?.color ?? '',
         unit: fabric?.unit ?? 'gaz',
-        quantity: fabric ? round2(fromBase(fabric.quantity_base, fabric.unit)) : 0,
-        cost_price_per_unit:
-          fabric?.cost_price_per_unit != null ? String(fabric.cost_price_per_unit) : '',
+        quantity: qty,
+        cost_price_per_unit: cost != null ? String(cost) : '',
+        total_cost: cost != null && qty > 0 ? String(round2(cost * qty)) : '',
+        selling_price_per_unit:
+          fabric?.selling_price_per_unit != null ? String(fabric.selling_price_per_unit) : '',
         low_stock_threshold: fabric ? round2(fromBase(fabric.low_stock_threshold, fabric.unit)) : 0
       })
     }
   }, [open, fabric])
+
+  // Keep cost/unit and total cost in sync via the quantity.
+  const setQuantity = (q: number): void => {
+    const cost = Number(form.cost_price_per_unit) || 0
+    setForm({ ...form, quantity: q, total_cost: cost && q > 0 ? String(round2(cost * q)) : form.total_cost })
+  }
+  const setCostPerUnit = (v: string): void => {
+    const cost = Number(v) || 0
+    const q = Number(form.quantity) || 0
+    setForm({ ...form, cost_price_per_unit: v, total_cost: cost && q > 0 ? String(round2(cost * q)) : '' })
+  }
+  const setTotalCost = (v: string): void => {
+    const total = Number(v) || 0
+    const q = Number(form.quantity) || 0
+    setForm({ ...form, total_cost: v, cost_price_per_unit: total && q > 0 ? String(round2(total / q)) : '' })
+  }
 
   const save = async (): Promise<void> => {
     setBusy(true)
@@ -237,6 +270,8 @@ function FabricModal({
         quantity: Number(form.quantity) || 0,
         cost_price_per_unit:
           form.cost_price_per_unit === '' ? null : Number(form.cost_price_per_unit),
+        selling_price_per_unit:
+          form.selling_price_per_unit === '' ? null : Number(form.selling_price_per_unit),
         low_stock_threshold: Number(form.low_stock_threshold) || 0
       }
       const saved = fabric
@@ -295,16 +330,32 @@ function FabricModal({
               type="number"
               className="input"
               value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })}
+              onChange={(e) => setQuantity(Number(e.target.value))}
             />
           </Field>
         )}
-        <Field label={t('cost_price')} hint="BDT per unit — optional (used for margin analytics)">
+        <Field label={t('total_cost')} hint="Total paid for the batch (BDT)">
+          <input
+            type="number"
+            className="input"
+            value={form.total_cost}
+            onChange={(e) => setTotalCost(e.target.value)}
+          />
+        </Field>
+        <Field label={t('cost_price')} hint="Auto-fills from total ÷ quantity">
           <input
             type="number"
             className="input"
             value={form.cost_price_per_unit}
-            onChange={(e) => setForm({ ...form, cost_price_per_unit: e.target.value })}
+            onChange={(e) => setCostPerUnit(e.target.value)}
+          />
+        </Field>
+        <Field label={t('selling_price')} hint="BDT per unit — shown when selling">
+          <input
+            type="number"
+            className="input"
+            value={form.selling_price_per_unit}
+            onChange={(e) => setForm({ ...form, selling_price_per_unit: e.target.value })}
           />
         </Field>
         <Field label={t('low_stock_threshold')}>
@@ -342,13 +393,22 @@ function AdjustModal({
   const toast = useToast()
   const current = round2(fromBase(fabric.quantity_base, fabric.unit))
   const [qty, setQty] = useState(mode === 'correct' ? current : 0)
+  const [sellPrice, setSellPrice] = useState(
+    fabric.selling_price_per_unit != null ? String(fabric.selling_price_per_unit) : ''
+  )
   const [busy, setBusy] = useState(false)
 
   const save = async (): Promise<void> => {
     setBusy(true)
     try {
-      if (mode === 'add') await api.fabrics.addStock(fabric.id, Number(qty), fabric.unit)
-      else await api.fabrics.correctStock(fabric.id, Number(qty), fabric.unit)
+      if (mode === 'add') {
+        await api.fabrics.addStock(
+          fabric.id,
+          Number(qty),
+          fabric.unit,
+          sellPrice === '' ? null : Number(sellPrice)
+        )
+      } else await api.fabrics.correctStock(fabric.id, Number(qty), fabric.unit)
       toast.success(mode === 'add' ? 'Stock added' : 'Stock corrected')
       onSaved()
     } catch (e) {
@@ -378,6 +438,18 @@ function AdjustModal({
           autoFocus
         />
       </Field>
+      {mode === 'add' && (
+        <div className="mt-4">
+          <Field label={t('selling_price')} hint="Optional — update the selling price on restock">
+            <input
+              type="number"
+              className="input"
+              value={sellPrice}
+              onChange={(e) => setSellPrice(e.target.value)}
+            />
+          </Field>
+        </div>
+      )}
       <div className="mt-5 flex justify-end gap-2">
         <button className="btn-secondary" onClick={onClose}>
           {t('cancel')}

@@ -29,6 +29,7 @@ export const fabricSchema = z.object({
   unit: fabricUnitSchema,
   quantity: z.number().nonnegative('Quantity cannot be negative'),
   cost_price_per_unit: z.number().nonnegative().nullable().optional(),
+  selling_price_per_unit: z.number().nonnegative().nullable().optional(),
   low_stock_threshold: z.number().nonnegative().default(0)
 })
 

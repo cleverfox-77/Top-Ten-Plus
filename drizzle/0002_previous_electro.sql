@@ -1,0 +1,1 @@
+ALTER TABLE "fabrics" ADD COLUMN "selling_price_per_unit" double precision;

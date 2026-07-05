@@ -43,6 +43,7 @@ const coat: GarmentDef = {
     m('chest'),
     m('belly'),
     m('hip'),
+    m('neck'),
     m('shoulder'),
     m('sleeve_length'),
     m('sleeve_mohuri'),
@@ -74,15 +75,14 @@ const coat: GarmentDef = {
         { value: '4', label: '4' }
       ]
     },
-    // The three groups below appear only when "Single breasted" is picked (§3.1).
+    // Bottom shape & side vent apply to all suits; button style is single-breasted only.
     {
       type: 'single',
       key: 'sb_bottom_shape',
       label: 'Bottom Shape',
-      showWhen: (v) => v.garment_style === 'single_breasted',
       options: [
-        { value: 'lob_round', label: 'Lob round (round at bottom)' },
-        { value: 'straight_bottom', label: 'Straight at bottom' }
+        { value: 'lob_round', label: 'Round at bottom (নিচে গোল)' },
+        { value: 'straight_bottom', label: 'Straight at bottom (নিচে সোজা)' }
       ]
     },
     {
@@ -99,10 +99,9 @@ const coat: GarmentDef = {
       type: 'single',
       key: 'sb_side_vent',
       label: 'Side Vent',
-      showWhen: (v) => v.garment_style === 'single_breasted',
       options: [
-        { value: 'side_open', label: 'Side open' },
-        { value: 'side_closed', label: 'Side closed' }
+        { value: 'side_open', label: 'Side open (সাইড খোলা)' },
+        { value: 'side_closed', label: 'Side closed (সাইড বন্ধ)' }
       ]
     }
   ]
@@ -146,6 +145,7 @@ const shirt: GarmentDef = {
     m('body'),
     m('belly'),
     m('hip'),
+    m('neck'),
     m('shoulder'),
     m('sleeve_length'),
     m('sleeve_calf'),

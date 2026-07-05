@@ -58,8 +58,8 @@ export const api = {
     lowStock: async () => unwrap<Fabric[]>(await F.lowStockFabrics()),
     create: async (input: unknown) => unwrap<Fabric>(await F.createFabric(input)),
     update: async (id: number, input: unknown) => unwrap<Fabric>(await F.updateFabric(id, input)),
-    addStock: async (id: number, qty: number, unit: FabricUnit) =>
-      unwrap<Fabric>(await F.addStock(id, qty, unit)),
+    addStock: async (id: number, qty: number, unit: FabricUnit, sellingPrice?: number | null) =>
+      unwrap<Fabric>(await F.addStock(id, qty, unit, sellingPrice)),
     correctStock: async (id: number, qty: number, unit: FabricUnit) =>
       unwrap<Fabric>(await F.correctStock(id, qty, unit)),
     movements: async (id: number) => unwrap<StockMovement[]>(await F.fabricMovements(id)),

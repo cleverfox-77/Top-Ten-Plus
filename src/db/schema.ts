@@ -55,7 +55,8 @@ export const fabrics = pgTable('fabrics', {
   color: text('color'),
   unit: text('unit').$type<FabricUnit>().notNull().default('gaz'),
   quantity_base: doublePrecision('quantity_base').notNull().default(0), // centimeters
-  cost_price_per_unit: doublePrecision('cost_price_per_unit'),
+  cost_price_per_unit: doublePrecision('cost_price_per_unit'), // BDT per display unit
+  selling_price_per_unit: doublePrecision('selling_price_per_unit'), // BDT per display unit
   low_stock_threshold: doublePrecision('low_stock_threshold').notNull().default(0), // centimeters
   created_at: timestamp('created_at', { mode: 'string' }).notNull().defaultNow()
 })

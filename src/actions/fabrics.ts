@@ -69,6 +69,7 @@ export async function createFabric(input: unknown) {
           unit: data.unit,
           quantity_base: baseQty,
           cost_price_per_unit: data.cost_price_per_unit ?? null,
+          selling_price_per_unit: data.selling_price_per_unit ?? null,
           low_stock_threshold: baseLow
         })
         .returning()
@@ -102,6 +103,7 @@ export async function updateFabric(id: number, input: unknown) {
         color: data.color ?? null,
         unit: data.unit,
         cost_price_per_unit: data.cost_price_per_unit ?? null,
+        selling_price_per_unit: data.selling_price_per_unit ?? null,
         low_stock_threshold: baseLow
       })
       .where(eq(fabrics.id, id))
@@ -110,7 +112,12 @@ export async function updateFabric(id: number, input: unknown) {
   })
 }
 
-export async function addStock(id: number, quantity: number, unit: FabricUnit) {
+export async function addStock(
+  id: number,
+  quantity: number,
+  unit: FabricUnit,
+  sellingPrice?: number | null
+) {
   return run<Fabric>(async () => {
     const admin = await requireAdmin()
     if (quantity <= 0) throw new Error('Quantity to add must be greater than zero')
@@ -118,11 +125,12 @@ export async function addStock(id: number, quantity: number, unit: FabricUnit) {
     return db.transaction(async (tx) => {
       const [fabric] = await tx.select().from(fabrics).where(eq(fabrics.id, id)).limit(1)
       if (!fabric) throw new Error('Fabric not found')
-      const [row] = await tx
-        .update(fabrics)
-        .set({ quantity_base: sql`${fabrics.quantity_base} + ${change}` })
-        .where(eq(fabrics.id, id))
-        .returning()
+      const patch: Record<string, unknown> = { quantity_base: sql`${fabrics.quantity_base} + ${change}` }
+      // Optionally refresh the selling price when restocking.
+      if (sellingPrice !== undefined && sellingPrice !== null) {
+        patch.selling_price_per_unit = sellingPrice
+      }
+      const [row] = await tx.update(fabrics).set(patch).where(eq(fabrics.id, id)).returning()
       await tx
         .insert(stockMovements)
         .values({ fabric_id: id, change_amount: change, reason: 'new_stock', created_by: admin.id })
