@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { fromBase, round2 } from '@/lib/units'
-import { fmtDate, reportRange } from '@/lib/format'
+import { fmtDateTime, reportRange } from '@/lib/format'
 import type { StockMovement, StockMovementFilters } from '@/lib/types'
 import { Spinner } from '@/components/ui'
 import { PrintToolbar, ReportHeader } from '@/components/print'
@@ -13,7 +13,8 @@ import { PrintToolbar, ReportHeader } from '@/components/print'
 const REASONS: Record<string, string> = {
   new_stock: 'New stock',
   order_deduction: 'Order deduction',
-  correction: 'Correction'
+  correction: 'Correction',
+  return: 'Return'
 }
 
 function StockHistoryReport(): JSX.Element {
@@ -75,7 +76,7 @@ function StockHistoryReport(): JSX.Element {
                 const change = round2(fromBase(m.change_amount, unit))
                 return (
                   <tr key={m.id}>
-                    <td className="td whitespace-nowrap">{fmtDate(m.created_at)}</td>
+                    <td className="td whitespace-nowrap">{fmtDateTime(m.created_at)}</td>
                     <td className="td font-medium">{m.fabric_name}</td>
                     <td className="td">{REASONS[m.reason]}</td>
                     <td className={`td text-right ${m.change_amount < 0 ? 'text-red-600' : 'text-green-700'}`}>

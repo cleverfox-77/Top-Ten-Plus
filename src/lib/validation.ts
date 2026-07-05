@@ -22,6 +22,8 @@ export const customerSchema = z.object({
   notes: z.string().trim().nullable().optional()
 })
 
+const paymentTypeSchema = z.enum(['cash', 'due'])
+
 export const fabricSchema = z.object({
   product_id: z.string().trim().min(1, 'Product ID / barcode is required'),
   name: z.string().trim().min(1, 'Fabric name is required'),
@@ -30,7 +32,43 @@ export const fabricSchema = z.object({
   quantity: z.number().nonnegative('Quantity cannot be negative'),
   cost_price_per_unit: z.number().nonnegative().nullable().optional(),
   selling_price_per_unit: z.number().nonnegative().nullable().optional(),
-  low_stock_threshold: z.number().nonnegative().default(0)
+  low_stock_threshold: z.number().nonnegative().default(0),
+  // Initial receiving details (optional)
+  supplier_id: z.number().int().positive().nullable().optional(),
+  challan_number: z.string().trim().nullable().optional(),
+  payment_type: paymentTypeSchema.nullable().optional()
+})
+
+export const supplierSchema = z.object({
+  name: z.string().trim().min(1, 'Supplier name is required'),
+  phone: z.string().trim().nullable().optional(),
+  address: z.string().trim().nullable().optional(),
+  notes: z.string().trim().nullable().optional()
+})
+
+export const receiveStockSchema = z.object({
+  fabric_id: z.number().int().positive(),
+  quantity: z.number().positive('Quantity must be greater than zero'),
+  unit: fabricUnitSchema,
+  unit_cost: z.number().nonnegative().nullable().optional(),
+  selling_price_per_unit: z.number().nonnegative().nullable().optional(),
+  supplier_id: z.number().int().positive().nullable().optional(),
+  challan_number: z.string().trim().nullable().optional(),
+  payment_type: paymentTypeSchema.nullable().optional()
+})
+
+export const returnStockSchema = z.object({
+  fabric_id: z.number().int().positive('Select a product'),
+  quantity: z.number().positive('Quantity must be greater than zero'),
+  unit: fabricUnitSchema,
+  note: z.string().trim().nullable().optional()
+})
+
+export const expenseSchema = z.object({
+  category: z.string().trim().min(1, 'Category is required'),
+  description: z.string().trim().nullable().optional(),
+  amount: z.number().positive('Amount must be greater than zero'),
+  spent_on: z.string().min(1, 'Date is required')
 })
 
 // Measurements: a flat record of numeric-ish values (blank allowed).

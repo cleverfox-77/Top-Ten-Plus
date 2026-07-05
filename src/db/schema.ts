@@ -140,16 +140,46 @@ export const stockMovements = pgTable(
       .references(() => fabrics.id),
     change_amount: doublePrecision('change_amount').notNull(), // cm; negative = deduction
     reason: text('reason')
-      .$type<'new_stock' | 'order_deduction' | 'correction'>()
+      .$type<'new_stock' | 'order_deduction' | 'correction' | 'return'>()
       .notNull(),
     reference_order_id: integer('reference_order_id').references(() => orders.id),
+    // Receiving details (used when reason = 'new_stock')
+    supplier_id: integer('supplier_id').references(() => suppliers.id),
+    challan_number: text('challan_number'),
+    unit_cost: doublePrecision('unit_cost'), // BDT per display unit at receiving
+    payment_type: text('payment_type').$type<'cash' | 'due'>(),
+    note: text('note'), // e.g. return reason
     created_by: integer('created_by')
       .notNull()
       .references(() => users.id),
     created_at: timestamp('created_at', { mode: 'string' }).notNull().defaultNow()
   },
-  (t) => ({ fabricIdx: index('idx_movements_fabric').on(t.fabric_id) })
+  (t) => ({
+    fabricIdx: index('idx_movements_fabric').on(t.fabric_id),
+    supplierIdx: index('idx_movements_supplier').on(t.supplier_id)
+  })
 )
+
+export const suppliers = pgTable('suppliers', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  address: text('address'),
+  notes: text('notes'),
+  created_at: timestamp('created_at', { mode: 'string' }).notNull().defaultNow()
+})
+
+export const expenses = pgTable('expenses', {
+  id: serial('id').primaryKey(),
+  category: text('category').notNull(),
+  description: text('description'),
+  amount: doublePrecision('amount').notNull(),
+  spent_on: date('spent_on').notNull().defaultNow(),
+  created_by: integer('created_by')
+    .notNull()
+    .references(() => users.id),
+  created_at: timestamp('created_at', { mode: 'string' }).notNull().defaultNow()
+})
 
 export const smsLog = pgTable('sms_log', {
   id: serial('id').primaryKey(),

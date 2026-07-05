@@ -20,7 +20,11 @@ import type {
   FabricSoldRow,
   StockRow,
   RevenuePoint,
-  StockMovementFilters
+  StockMovementFilters,
+  Supplier,
+  SupplierDetail,
+  Expense,
+  ExpenseFilters
 } from '@/lib/types'
 
 import { loginAction, logoutAction, sessionAction } from '@/actions/auth'
@@ -30,6 +34,8 @@ import * as O from '@/actions/orders'
 import * as S from '@/actions/sms'
 import * as U from '@/actions/users'
 import * as A from '@/actions/analytics'
+import * as Sup from '@/actions/suppliers'
+import * as Exp from '@/actions/expenses'
 
 function unwrap<T>(r: ActionResult<T>): T {
   if (!r.ok) throw new Error(r.error)
@@ -55,16 +61,28 @@ export const api = {
   fabrics: {
     list: async (search?: string) => unwrap<Fabric[]>(await F.listFabrics(search)),
     get: async (id: number) => unwrap<Fabric | undefined>(await F.getFabric(id)),
+    findByBarcode: async (code: string) => unwrap<Fabric | undefined>(await F.findByBarcode(code)),
     lowStock: async () => unwrap<Fabric[]>(await F.lowStockFabrics()),
     create: async (input: unknown) => unwrap<Fabric>(await F.createFabric(input)),
     update: async (id: number, input: unknown) => unwrap<Fabric>(await F.updateFabric(id, input)),
-    addStock: async (id: number, qty: number, unit: FabricUnit, sellingPrice?: number | null) =>
-      unwrap<Fabric>(await F.addStock(id, qty, unit, sellingPrice)),
+    receiveStock: async (input: unknown) => unwrap<Fabric>(await F.receiveStock(input)),
     correctStock: async (id: number, qty: number, unit: FabricUnit) =>
       unwrap<Fabric>(await F.correctStock(id, qty, unit)),
+    recordReturn: async (input: unknown) => unwrap<Fabric>(await F.recordReturn(input)),
     movements: async (id: number) => unwrap<StockMovement[]>(await F.fabricMovements(id)),
     stockMovements: async (filters: StockMovementFilters) =>
       unwrap<StockMovement[]>(await F.listStockMovements(filters))
+  },
+  suppliers: {
+    list: async (search?: string) => unwrap<Supplier[]>(await Sup.listSuppliers(search)),
+    detail: async (id: number) => unwrap<SupplierDetail | undefined>(await Sup.getSupplierDetail(id)),
+    create: async (input: unknown) => unwrap<Supplier>(await Sup.createSupplier(input)),
+    update: async (id: number, input: unknown) => unwrap<Supplier>(await Sup.updateSupplier(id, input))
+  },
+  expenses: {
+    list: async (filters: ExpenseFilters) => unwrap<Expense[]>(await Exp.listExpenses(filters)),
+    create: async (input: unknown) => unwrap<Expense>(await Exp.createExpense(input)),
+    delete: async (id: number) => unwrap<boolean>(await Exp.deleteExpense(id))
   },
   orders: {
     create: async (input: NewOrderInput) => unwrap<Order>(await O.createOrder(input)),

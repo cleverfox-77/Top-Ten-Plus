@@ -9,6 +9,18 @@ export function fmtDate(d: string | null | undefined): string {
   return d.slice(0, 10)
 }
 
+/** Date + time for receipts, e.g. "2026-07-04 3:42 PM". Accepts a datetime string. */
+export function fmtDateTime(d: string | null | undefined): string {
+  if (!d) return '—'
+  // Postgres timestamps come back as "YYYY-MM-DD HH:MM:SS" (localtime).
+  const iso = d.includes('T') ? d : d.replace(' ', 'T')
+  const date = new Date(iso)
+  if (isNaN(date.getTime())) return d
+  const day = d.slice(0, 10)
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return `${day} ${time}`
+}
+
 export function todayStr(): string {
   const d = new Date()
   const off = d.getTimezoneOffset()
@@ -21,6 +33,12 @@ export function humanDate(d: string | Date | null | undefined): string {
   const date = typeof d === 'string' ? new Date(d.slice(0, 10) + 'T00:00:00') : d
   if (isNaN(date.getTime())) return String(d)
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/** Current local date + time, e.g. "4 Jul 2026, 3:42 PM" — for "printed at" lines. */
+export function nowDateTime(): string {
+  const d = new Date()
+  return `${humanDate(d)}, ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
 }
 
 /** Builds a report subtitle: "1 Jul to 30 Jul 2026 — generated 4 Jul 2026". */

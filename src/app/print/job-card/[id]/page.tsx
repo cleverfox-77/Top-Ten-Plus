@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t, en } from '@/lib/labels'
 import { GARMENTS, describeStyle } from '@/lib/garments'
-import { humanDate, fmtDate } from '@/lib/format'
+import { fmtDate, nowDateTime } from '@/lib/format'
 import type { Order, OrderItem } from '@/lib/types'
 import { Spinner } from '@/components/ui'
 import { PrintToolbar, Barcode, DISCLAIMER } from '@/components/print'
@@ -88,7 +88,7 @@ function JobCard({
         </div>
         <div className="flex items-start gap-3">
           <div className="text-right text-xs text-gray-600">
-            <div>Printed: {humanDate(new Date())}</div>
+            <div>Printed: {nowDateTime()}</div>
             <div className="mt-1 text-lg font-bold text-gray-900">
               {en(item.garment_type)} {itemNo}
             </div>

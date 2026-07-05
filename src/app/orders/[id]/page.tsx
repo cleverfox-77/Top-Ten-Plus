@@ -8,7 +8,7 @@ import { useToast } from '@/lib/toast'
 import { t, STATUS_LABELS, PAYMENT_LABELS } from '@/lib/labels'
 import { GARMENTS, describeStyle } from '@/lib/garments'
 import { STATUS_TONE, STATUS_FLOW } from '@/lib/status'
-import { bdt, fmtDate } from '@/lib/format'
+import { bdt, fmtDate, fmtDateTime } from '@/lib/format'
 import type { Order, OrderItem, OrderStatus } from '@/lib/types'
 import { PageHeader, Spinner, StatusBadge } from '@/components/ui'
 import Logo from '@/components/Logo'
@@ -250,6 +250,7 @@ function OrderSlip({ order }: { order: Order }): JSX.Element {
           <div className="text-gray-600">
             {t('order_date')}: {fmtDate(order.order_date)}
           </div>
+          <div className="text-gray-600">Time: {fmtDateTime(order.created_at)}</div>
           <div className="text-gray-600">
             {t('delivery_date')}: {fmtDate(order.expected_delivery_date)}
           </div>

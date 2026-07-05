@@ -91,14 +91,50 @@ export interface Order {
   payments?: Payment[]
 }
 
+export type StockReason = 'new_stock' | 'order_deduction' | 'correction' | 'return'
+
 export interface StockMovement {
   id: number
   fabric_id: number
   fabric_name?: string
   fabric_unit?: FabricUnit
   change_amount: number // in centimeters; negative = deduction
-  reason: 'new_stock' | 'order_deduction' | 'correction'
+  reason: StockReason
   reference_order_id: number | null
+  supplier_id?: number | null
+  supplier_name?: string | null
+  challan_number?: string | null
+  unit_cost?: number | null
+  payment_type?: 'cash' | 'due' | null
+  note?: string | null
+  created_by: number
+  created_by_name?: string
+  created_at: string
+}
+
+export interface Supplier {
+  id: number
+  name: string
+  phone: string | null
+  address: string | null
+  notes: string | null
+  created_at: string
+}
+
+export interface SupplierDetail extends Supplier {
+  total_received_value: number // sum of unit_cost * qty across receivings
+  cash_total: number
+  due_total: number
+  fabrics_supplied: { fabric_id: number; name: string; receivings: number; qty_base: number }[]
+  receivings: StockMovement[]
+}
+
+export interface Expense {
+  id: number
+  category: string
+  description: string | null
+  amount: number
+  spent_on: string
   created_by: number
   created_by_name?: string
   created_at: string
@@ -108,7 +144,14 @@ export interface StockMovementFilters {
   from?: string | null
   to?: string | null
   fabricId?: number | null
-  reason?: 'new_stock' | 'order_deduction' | 'correction' | null
+  supplierId?: number | null
+  reason?: StockReason | null
+}
+
+export interface ExpenseFilters {
+  from?: string | null
+  to?: string | null
+  category?: string | null
 }
 
 export interface SmsLog {

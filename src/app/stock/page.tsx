@@ -8,9 +8,10 @@ import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { t } from '@/lib/labels'
 import { ALL_UNITS, UNIT_LABELS, fromBase, round2 } from '@/lib/units'
-import type { Fabric, FabricUnit, StockMovement } from '@/lib/types'
+import type { Fabric, FabricUnit, StockMovement, Supplier } from '@/lib/types'
 import { PageHeader, Modal, Field, EmptyState, Spinner } from '@/components/ui'
-import { bdt, fmtDate } from '@/lib/format'
+import SupplierModal from '@/components/SupplierModal'
+import { bdt, fmtDateTime } from '@/lib/format'
 
 export default function StockPage(): JSX.Element {
   const { isAdmin } = useAuth()
@@ -222,7 +223,21 @@ function FabricModal({
     selling_price_per_unit: '' as string,
     low_stock_threshold: 0
   })
+  const [supplierId, setSupplierId] = useState('')
+  const [challan, setChallan] = useState('')
+  const [paymentType, setPaymentType] = useState<'cash' | 'due'>('cash')
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [supplierModal, setSupplierModal] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (open && !fabric) {
+      api.suppliers.list().then(setSuppliers).catch(() => {})
+      setSupplierId('')
+      setChallan('')
+      setPaymentType('cash')
+    }
+  }, [open, fabric])
 
   useEffect(() => {
     if (open) {
@@ -272,7 +287,11 @@ function FabricModal({
           form.cost_price_per_unit === '' ? null : Number(form.cost_price_per_unit),
         selling_price_per_unit:
           form.selling_price_per_unit === '' ? null : Number(form.selling_price_per_unit),
-        low_stock_threshold: Number(form.low_stock_threshold) || 0
+        low_stock_threshold: Number(form.low_stock_threshold) || 0,
+        // Initial receiving details (create only)
+        supplier_id: fabric ? undefined : supplierId ? Number(supplierId) : null,
+        challan_number: fabric ? undefined : challan.trim() || null,
+        payment_type: fabric ? undefined : paymentType
       }
       const saved = fabric
         ? await api.fabrics.update(fabric.id, payload)
@@ -367,6 +386,58 @@ function FabricModal({
           />
         </Field>
       </div>
+
+      {!fabric && (
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <div className="mb-2 text-xs font-semibold uppercase text-gray-500">
+            Receiving (optional)
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label={t('supplier')}>
+              <div className="flex gap-1">
+                <select
+                  className="input"
+                  value={supplierId}
+                  onChange={(e) => setSupplierId(e.target.value)}
+                >
+                  <option value="">— none —</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn-secondary shrink-0 px-2"
+                  onClick={() => setSupplierModal(true)}
+                  title="Add supplier"
+                >
+                  +
+                </button>
+              </div>
+            </Field>
+            <Field label={t('challan')}>
+              <input
+                className="input"
+                value={challan}
+                onChange={(e) => setChallan(e.target.value)}
+              />
+            </Field>
+            <Field label={t('payment_type')}>
+              <select
+                className="input"
+                value={paymentType}
+                onChange={(e) => setPaymentType(e.target.value as 'cash' | 'due')}
+              >
+                <option value="cash">Cash (paid)</option>
+                <option value="due">Due (credit)</option>
+              </select>
+            </Field>
+          </div>
+        </div>
+      )}
+
       <div className="mt-5 flex justify-end gap-2">
         <button className="btn-secondary" onClick={onClose}>
           {t('cancel')}
@@ -375,6 +446,17 @@ function FabricModal({
           {busy ? <Spinner /> : t('save')}
         </button>
       </div>
+
+      <SupplierModal
+        open={supplierModal}
+        supplier={null}
+        onClose={() => setSupplierModal(false)}
+        onSaved={(s) => {
+          setSupplierModal(false)
+          setSuppliers((prev) => [...prev, s])
+          setSupplierId(String(s.id))
+        }}
+      />
     </Modal>
   )
 }
@@ -393,23 +475,39 @@ function AdjustModal({
   const toast = useToast()
   const current = round2(fromBase(fabric.quantity_base, fabric.unit))
   const [qty, setQty] = useState(mode === 'correct' ? current : 0)
+  const [unitCost, setUnitCost] = useState(
+    fabric.cost_price_per_unit != null ? String(fabric.cost_price_per_unit) : ''
+  )
   const [sellPrice, setSellPrice] = useState(
     fabric.selling_price_per_unit != null ? String(fabric.selling_price_per_unit) : ''
   )
+  const [supplierId, setSupplierId] = useState<string>('')
+  const [challan, setChallan] = useState('')
+  const [paymentType, setPaymentType] = useState<'cash' | 'due'>('cash')
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [supplierModal, setSupplierModal] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (mode === 'add') api.suppliers.list().then(setSuppliers).catch(() => {})
+  }, [mode])
 
   const save = async (): Promise<void> => {
     setBusy(true)
     try {
       if (mode === 'add') {
-        await api.fabrics.addStock(
-          fabric.id,
-          Number(qty),
-          fabric.unit,
-          sellPrice === '' ? null : Number(sellPrice)
-        )
+        await api.fabrics.receiveStock({
+          fabric_id: fabric.id,
+          quantity: Number(qty),
+          unit: fabric.unit,
+          unit_cost: unitCost === '' ? null : Number(unitCost),
+          selling_price_per_unit: sellPrice === '' ? null : Number(sellPrice),
+          supplier_id: supplierId ? Number(supplierId) : null,
+          challan_number: challan.trim() || null,
+          payment_type: paymentType
+        })
       } else await api.fabrics.correctStock(fabric.id, Number(qty), fabric.unit)
-      toast.success(mode === 'add' ? 'Stock added' : 'Stock corrected')
+      toast.success(mode === 'add' ? 'Stock received' : 'Stock corrected')
       onSaved()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed')
@@ -422,25 +520,75 @@ function AdjustModal({
     <Modal
       open
       onClose={onClose}
-      title={`${mode === 'add' ? 'Add stock' : 'Correct quantity'} — ${fabric.name}`}
+      title={`${mode === 'add' ? 'Receive stock' : 'Correct quantity'} — ${fabric.name}`}
+      width={mode === 'add' ? 'max-w-xl' : 'max-w-lg'}
     >
       <p className="mb-3 text-sm text-gray-500">
         Current: <b>{current} {fabric.unit}</b>
       </p>
-      <Field
-        label={mode === 'add' ? `Quantity to add (${fabric.unit})` : `Set quantity to (${fabric.unit})`}
-      >
-        <input
-          type="number"
-          className="input"
-          value={qty}
-          onChange={(e) => setQty(Number(e.target.value))}
-          autoFocus
-        />
-      </Field>
-      {mode === 'add' && (
-        <div className="mt-4">
-          <Field label={t('selling_price')} hint="Optional — update the selling price on restock">
+
+      {mode === 'add' ? (
+        <div className="grid grid-cols-2 gap-4">
+          <Field label={`Quantity to add (${fabric.unit})`}>
+            <input
+              type="number"
+              className="input"
+              value={qty}
+              onChange={(e) => setQty(Number(e.target.value))}
+              autoFocus
+            />
+          </Field>
+          <Field label={t('challan')}>
+            <input
+              className="input"
+              value={challan}
+              onChange={(e) => setChallan(e.target.value)}
+              placeholder="Challan / stock no."
+            />
+          </Field>
+          <Field label={t('supplier')}>
+            <div className="flex gap-1">
+              <select
+                className="input"
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
+              >
+                <option value="">— none —</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn-secondary shrink-0 px-2"
+                onClick={() => setSupplierModal(true)}
+                title="Add supplier"
+              >
+                +
+              </button>
+            </div>
+          </Field>
+          <Field label={t('payment_type')}>
+            <select
+              className="input"
+              value={paymentType}
+              onChange={(e) => setPaymentType(e.target.value as 'cash' | 'due')}
+            >
+              <option value="cash">Cash (paid)</option>
+              <option value="due">Due (credit)</option>
+            </select>
+          </Field>
+          <Field label={t('cost_price')}>
+            <input
+              type="number"
+              className="input"
+              value={unitCost}
+              onChange={(e) => setUnitCost(e.target.value)}
+            />
+          </Field>
+          <Field label={t('selling_price')}>
             <input
               type="number"
               className="input"
@@ -449,7 +597,18 @@ function AdjustModal({
             />
           </Field>
         </div>
+      ) : (
+        <Field label={`Set quantity to (${fabric.unit})`}>
+          <input
+            type="number"
+            className="input"
+            value={qty}
+            onChange={(e) => setQty(Number(e.target.value))}
+            autoFocus
+          />
+        </Field>
       )}
+
       <div className="mt-5 flex justify-end gap-2">
         <button className="btn-secondary" onClick={onClose}>
           {t('cancel')}
@@ -458,6 +617,17 @@ function AdjustModal({
           {busy ? <Spinner /> : t('save')}
         </button>
       </div>
+
+      <SupplierModal
+        open={supplierModal}
+        supplier={null}
+        onClose={() => setSupplierModal(false)}
+        onSaved={(s) => {
+          setSupplierModal(false)
+          setSuppliers((prev) => [...prev, s])
+          setSupplierId(String(s.id))
+        }}
+      />
     </Modal>
   )
 }
@@ -478,7 +648,8 @@ function MovementsModal({ fabric, onClose }: { fabric: Fabric; onClose: () => vo
   const reasonLabel: Record<string, string> = {
     new_stock: 'New stock',
     order_deduction: 'Order deduction',
-    correction: 'Correction'
+    correction: 'Correction',
+    return: 'Return'
   }
 
   return (
@@ -501,7 +672,7 @@ function MovementsModal({ fabric, onClose }: { fabric: Fabric; onClose: () => vo
           <tbody className="divide-y divide-gray-100">
             {rows.map((m) => (
               <tr key={m.id}>
-                <td className="td">{fmtDate(m.created_at)}</td>
+                <td className="td whitespace-nowrap">{fmtDateTime(m.created_at)}</td>
                 <td className="td">{reasonLabel[m.reason]}</td>
                 <td
                   className={`td text-right font-medium ${

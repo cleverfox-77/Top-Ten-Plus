@@ -7,14 +7,15 @@ import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t } from '@/lib/labels'
 import { fromBase, round2 } from '@/lib/units'
-import { fmtDate } from '@/lib/format'
+import { fmtDateTime } from '@/lib/format'
 import type { Fabric, StockMovement } from '@/lib/types'
 import { PageHeader, EmptyState, Spinner } from '@/components/ui'
 
 const REASONS: Record<string, string> = {
   new_stock: 'New stock',
   order_deduction: 'Order deduction',
-  correction: 'Correction'
+  correction: 'Correction',
+  return: 'Return'
 }
 
 export default function StockHistoryPage(): JSX.Element {
@@ -152,7 +153,7 @@ export default function StockHistoryPage(): JSX.Element {
                 const change = round2(fromBase(m.change_amount, unit))
                 return (
                   <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="td whitespace-nowrap text-gray-500">{fmtDate(m.created_at)}</td>
+                    <td className="td whitespace-nowrap text-gray-500">{fmtDateTime(m.created_at)}</td>
                     <td className="td font-medium">{m.fabric_name}</td>
                     <td className="td text-gray-600">{REASONS[m.reason]}</td>
                     <td

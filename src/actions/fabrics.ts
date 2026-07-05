@@ -2,9 +2,9 @@
 
 import { and, desc, eq, gte, ilike, lte, or, ne, sql, gt } from 'drizzle-orm'
 import { db } from '@/db'
-import { fabrics, stockMovements, users } from '@/db/schema'
+import { fabrics, stockMovements, suppliers, users } from '@/db/schema'
 import { requireAuth, requireAdmin } from '@/lib/session'
-import { fabricSchema } from '@/lib/validation'
+import { fabricSchema, receiveStockSchema, returnStockSchema } from '@/lib/validation'
 import { toBase } from '@/lib/units'
 import { run } from '@/lib/result'
 import type { Fabric, FabricUnit, StockMovement, StockMovementFilters } from '@/lib/types'
@@ -17,9 +17,7 @@ export async function listFabrics(search?: string) {
       return db
         .select()
         .from(fabrics)
-        .where(
-          or(ilike(fabrics.product_id, q), ilike(fabrics.name, q), ilike(fabrics.color, q))
-        )
+        .where(or(ilike(fabrics.product_id, q), ilike(fabrics.name, q), ilike(fabrics.color, q)))
         .orderBy(fabrics.name)
     }
     return db.select().from(fabrics).orderBy(fabrics.name)
@@ -30,6 +28,21 @@ export async function getFabric(id: number) {
   return run<Fabric | undefined>(async () => {
     await requireAuth()
     const [row] = await db.select().from(fabrics).where(eq(fabrics.id, id)).limit(1)
+    return row
+  })
+}
+
+/** Exact barcode / product-id lookup (for scanners & product search). */
+export async function findByBarcode(code: string) {
+  return run<Fabric | undefined>(async () => {
+    await requireAuth()
+    const q = code.trim()
+    if (!q) return undefined
+    const [row] = await db
+      .select()
+      .from(fabrics)
+      .where(ilike(fabrics.product_id, q))
+      .limit(1)
     return row
   })
 }
@@ -74,9 +87,16 @@ export async function createFabric(input: unknown) {
         })
         .returning()
       if (baseQty > 0) {
-        await tx
-          .insert(stockMovements)
-          .values({ fabric_id: row.id, change_amount: baseQty, reason: 'new_stock', created_by: admin.id })
+        await tx.insert(stockMovements).values({
+          fabric_id: row.id,
+          change_amount: baseQty,
+          reason: 'new_stock',
+          supplier_id: data.supplier_id ?? null,
+          challan_number: data.challan_number ?? null,
+          unit_cost: data.cost_price_per_unit ?? null,
+          payment_type: data.payment_type ?? null,
+          created_by: admin.id
+        })
       }
       return row
     })
@@ -112,28 +132,31 @@ export async function updateFabric(id: number, input: unknown) {
   })
 }
 
-export async function addStock(
-  id: number,
-  quantity: number,
-  unit: FabricUnit,
-  sellingPrice?: number | null
-) {
+/** Receive stock (add) with full receiving details — supplier, challan, cost, cash/due. */
+export async function receiveStock(input: unknown) {
   return run<Fabric>(async () => {
     const admin = await requireAdmin()
-    if (quantity <= 0) throw new Error('Quantity to add must be greater than zero')
-    const change = toBase(quantity, unit)
+    const data = receiveStockSchema.parse(input)
+    const change = toBase(data.quantity, data.unit)
     return db.transaction(async (tx) => {
-      const [fabric] = await tx.select().from(fabrics).where(eq(fabrics.id, id)).limit(1)
+      const [fabric] = await tx.select().from(fabrics).where(eq(fabrics.id, data.fabric_id)).limit(1)
       if (!fabric) throw new Error('Fabric not found')
+
       const patch: Record<string, unknown> = { quantity_base: sql`${fabrics.quantity_base} + ${change}` }
-      // Optionally refresh the selling price when restocking.
-      if (sellingPrice !== undefined && sellingPrice !== null) {
-        patch.selling_price_per_unit = sellingPrice
-      }
-      const [row] = await tx.update(fabrics).set(patch).where(eq(fabrics.id, id)).returning()
-      await tx
-        .insert(stockMovements)
-        .values({ fabric_id: id, change_amount: change, reason: 'new_stock', created_by: admin.id })
+      if (data.selling_price_per_unit != null) patch.selling_price_per_unit = data.selling_price_per_unit
+      if (data.unit_cost != null) patch.cost_price_per_unit = data.unit_cost
+
+      const [row] = await tx.update(fabrics).set(patch).where(eq(fabrics.id, data.fabric_id)).returning()
+      await tx.insert(stockMovements).values({
+        fabric_id: data.fabric_id,
+        change_amount: change,
+        reason: 'new_stock',
+        supplier_id: data.supplier_id ?? null,
+        challan_number: data.challan_number ?? null,
+        unit_cost: data.unit_cost ?? null,
+        payment_type: data.payment_type ?? null,
+        created_by: admin.id
+      })
       return row
     })
   })
@@ -161,22 +184,60 @@ export async function correctStock(id: number, targetQuantity: number, unit: Fab
   })
 }
 
+/** Record a product return — adds the quantity back to stock and logs it. */
+export async function recordReturn(input: unknown) {
+  return run<Fabric>(async () => {
+    const user = await requireAuth()
+    const data = returnStockSchema.parse(input)
+    const change = toBase(data.quantity, data.unit)
+    return db.transaction(async (tx) => {
+      const [fabric] = await tx.select().from(fabrics).where(eq(fabrics.id, data.fabric_id)).limit(1)
+      if (!fabric) throw new Error('Fabric not found')
+      const [row] = await tx
+        .update(fabrics)
+        .set({ quantity_base: sql`${fabrics.quantity_base} + ${change}` })
+        .where(eq(fabrics.id, data.fabric_id))
+        .returning()
+      await tx.insert(stockMovements).values({
+        fabric_id: data.fabric_id,
+        change_amount: change,
+        reason: 'return',
+        note: data.note ?? null,
+        created_by: user.id
+      })
+      return row
+    })
+  })
+}
+
+const movementCols = {
+  id: stockMovements.id,
+  fabric_id: stockMovements.fabric_id,
+  fabric_name: fabrics.name,
+  fabric_unit: fabrics.unit,
+  change_amount: stockMovements.change_amount,
+  reason: stockMovements.reason,
+  reference_order_id: stockMovements.reference_order_id,
+  supplier_id: stockMovements.supplier_id,
+  supplier_name: suppliers.name,
+  challan_number: stockMovements.challan_number,
+  unit_cost: stockMovements.unit_cost,
+  payment_type: stockMovements.payment_type,
+  note: stockMovements.note,
+  created_by: stockMovements.created_by,
+  created_at: stockMovements.created_at,
+  created_by_name: users.name
+}
+
 export async function fabricMovements(fabricId: number) {
   return run<StockMovement[]>(async () => {
     await requireAuth()
     return db
-      .select({
-        id: stockMovements.id,
-        fabric_id: stockMovements.fabric_id,
-        change_amount: stockMovements.change_amount,
-        reason: stockMovements.reason,
-        reference_order_id: stockMovements.reference_order_id,
-        created_by: stockMovements.created_by,
-        created_at: stockMovements.created_at,
-        created_by_name: users.name
-      })
+      .select(movementCols)
       .from(stockMovements)
+      .innerJoin(fabrics, eq(fabrics.id, stockMovements.fabric_id))
       .innerJoin(users, eq(users.id, stockMovements.created_by))
+      .leftJoin(suppliers, eq(suppliers.id, stockMovements.supplier_id))
       .where(eq(stockMovements.fabric_id, fabricId))
       .orderBy(desc(stockMovements.id))
   })
@@ -190,23 +251,14 @@ export async function listStockMovements(filters: StockMovementFilters = {}) {
     if (filters.from) conds.push(gte(stockMovements.created_at, `${filters.from} 00:00:00`))
     if (filters.to) conds.push(lte(stockMovements.created_at, `${filters.to} 23:59:59`))
     if (filters.fabricId) conds.push(eq(stockMovements.fabric_id, filters.fabricId))
+    if (filters.supplierId) conds.push(eq(stockMovements.supplier_id, filters.supplierId))
     if (filters.reason) conds.push(eq(stockMovements.reason, filters.reason))
     return db
-      .select({
-        id: stockMovements.id,
-        fabric_id: stockMovements.fabric_id,
-        fabric_name: fabrics.name,
-        fabric_unit: fabrics.unit,
-        change_amount: stockMovements.change_amount,
-        reason: stockMovements.reason,
-        reference_order_id: stockMovements.reference_order_id,
-        created_by: stockMovements.created_by,
-        created_at: stockMovements.created_at,
-        created_by_name: users.name
-      })
+      .select(movementCols)
       .from(stockMovements)
       .innerJoin(fabrics, eq(fabrics.id, stockMovements.fabric_id))
       .innerJoin(users, eq(users.id, stockMovements.created_by))
+      .leftJoin(suppliers, eq(suppliers.id, stockMovements.supplier_id))
       .where(conds.length ? and(...conds) : undefined)
       .orderBy(desc(stockMovements.id))
       .limit(1000)

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { fromBase, round2 } from '@/lib/units'
-import { bdt, humanDate } from '@/lib/format'
+import { bdt, fmtDateTime, nowDateTime } from '@/lib/format'
 import type { Fabric, StockMovement } from '@/lib/types'
 import { Spinner } from '@/components/ui'
 import { PrintToolbar, ReportHeader, Barcode, DISCLAIMER } from '@/components/print'
@@ -44,7 +44,7 @@ export default function FabricIntakePrint(): JSX.Element {
     ['Color', fabric.color || '—'],
     ['Quantity', `${qty} ${fabric.unit}`],
     ['Cost price / unit', fabric.cost_price_per_unit != null ? bdt(fabric.cost_price_per_unit) : '—'],
-    ['Date added', humanDate(dateAdded)],
+    ['Date & time added', fmtDateTime(dateAdded)],
     ['Added by', addedBy]
   ]
 
@@ -52,7 +52,7 @@ export default function FabricIntakePrint(): JSX.Element {
     <div>
       <PrintToolbar backHref="/stock" />
       <div className="print-area card mx-auto max-w-md p-6">
-        <ReportHeader title="Stock Intake Receipt" subtitle={`generated ${humanDate(new Date())}`} />
+        <ReportHeader title="Stock Intake Receipt" subtitle={`generated ${nowDateTime()}`} />
 
         <div className="my-4 flex justify-center">
           <Barcode value={fabric.product_id} />

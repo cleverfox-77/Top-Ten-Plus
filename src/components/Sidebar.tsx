@@ -13,7 +13,12 @@ import {
   UserCog,
   LogOut,
   PlusCircle,
-  ScrollText
+  ScrollText,
+  PackageSearch,
+  Truck,
+  RotateCcw,
+  Wallet,
+  FileBarChart
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { t, ROLE_LABELS } from '@/lib/labels'
@@ -31,10 +36,15 @@ const items: NavItem[] = [
   { href: '/orders/new', label: t('new_order'), icon: <PlusCircle size={18} /> },
   { href: '/orders', label: t('orders'), icon: <ScissorsSquare size={18} />, exact: true },
   { href: '/customers', label: t('customers'), icon: <Users size={18} /> },
+  { href: '/products', label: t('products'), icon: <PackageSearch size={18} /> },
   { href: '/stock', label: t('stock'), icon: <Boxes size={18} />, exact: true },
+  { href: '/suppliers', label: t('suppliers'), icon: <Truck size={18} /> },
+  { href: '/returns', label: t('returns'), icon: <RotateCcw size={18} /> },
   { href: '/stock-history', label: 'Stock History', icon: <ScrollText size={18} /> },
   { href: '/sales', label: t('sales_history'), icon: <History size={18} /> },
+  { href: '/expenses', label: t('expenses'), icon: <Wallet size={18} /> },
   { href: '/notify', label: t('notify'), icon: <BellRing size={18} /> },
+  { href: '/reports', label: t('reports'), icon: <FileBarChart size={18} /> },
   { href: '/analytics', label: t('analytics'), icon: <BarChart3 size={18} />, adminOnly: true },
   { href: '/staff', label: t('staff'), icon: <UserCog size={18} />, adminOnly: true }
 ]
