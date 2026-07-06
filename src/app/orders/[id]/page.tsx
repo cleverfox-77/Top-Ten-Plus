@@ -6,7 +6,7 @@ import { Printer, ArrowLeft, BellRing, Scissors } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t, STATUS_LABELS, PAYMENT_LABELS } from '@/lib/labels'
-import { GARMENTS, describeStyle } from '@/lib/garments'
+import { GARMENT_ORDER, describeStyle } from '@/lib/garments'
 import { STATUS_TONE, STATUS_FLOW } from '@/lib/status'
 import { bdt, fmtDate, fmtDateTime } from '@/lib/format'
 import type { Order, OrderItem, OrderStatus } from '@/lib/types'
@@ -321,39 +321,34 @@ function OrderSlip({ order }: { order: Order }): JSX.Element {
 }
 
 function SlipItem({ item, index }: { item: OrderItem; index: number }): JSX.Element {
-  const def = GARMENTS[item.garment_type]
-  const measures = def.measurements.filter(
-    (m) =>
-      item.measurements[m.key] !== undefined &&
-      item.measurements[m.key] !== null &&
-      item.measurements[m.key] !== ''
-  )
+  // Customer invoice: garment type + style/fabric only — NO measurements
+  // (measurements appear only on the tailor job card).
   const styles = describeStyle(item.garment_type, item.style_options)
 
   return (
     <div className="rounded-lg border border-gray-200 p-3">
       <div className="mb-2 flex items-center justify-between">
-        <div className="font-semibold text-gray-800">
-          {index + 1}. {t(item.garment_type)}
-        </div>
+        <div className="font-semibold text-gray-800">Item {index + 1}</div>
         <div className="text-sm font-semibold">{bdt(item.price)}</div>
       </div>
 
-      {measures.length > 0 && (
-        <div className="mb-2 grid grid-cols-4 gap-x-4 gap-y-1 text-xs">
-          {measures.map((m) => (
-            <div key={m.key} className="flex justify-between border-b border-dotted border-gray-200">
-              <span className="text-gray-500">{m.label}</span>
-              <span className="font-medium">{String(item.measurements[m.key])}″</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Garment type — selected is ticked, the rest are empty boxes */}
+      <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        {GARMENT_ORDER.map((g) => (
+          <span
+            key={g}
+            className={g === item.garment_type ? 'font-semibold text-gray-900' : 'text-gray-400'}
+          >
+            {g === item.garment_type ? '☑' : '☐'} {t(g)}
+          </span>
+        ))}
+      </div>
 
       {styles.length > 0 && (
-        <div className="mb-1 text-xs text-gray-600">
-          <span className="font-medium text-gray-700">Style: </span>
-          {styles.join(' · ')}
+        <div className="mb-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-700">
+          {styles.map((s, i) => (
+            <span key={i}>☑ {s}</span>
+          ))}
         </div>
       )}
 

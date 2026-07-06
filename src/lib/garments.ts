@@ -53,13 +53,15 @@ const coat: GarmentDef = {
   type: 'coat',
   measurements: [
     m('long'),
+    m('body'),
+    m('foot'),
+    m('sleeve_length'),
+    m('sleeve_mohuri'),
+    m('neck'),
     m('chest'),
     m('belly'),
     m('hip'),
-    m('neck'),
     m('shoulder'),
-    m('sleeve_length'),
-    m('sleeve_mohuri'),
     m('fd'),
     m('cb'),
     m('shoulder_ds')
@@ -113,10 +115,11 @@ const coat: GarmentDef = {
       label: 'Vent',
       options: [
         { value: 'side_open', label: 'Side open (সাইড খোলা)' },
-        { value: 'side_closed', label: 'Side closed (সাইড বন্ধ)' },
+        { value: 'side_closed', label: 'No Open' },
         { value: 'back_open', label: 'Back open (পিছনে খোলা)' }
       ]
-    }
+    },
+    { type: 'toggle', key: 'xb', label: 'XB' }
   ]
 }
 
@@ -129,7 +132,9 @@ const pant: GarmentDef = {
     m('hip'),
     m('thigh'),
     m('thigh_mohuri'),
-    m('high_rise')
+    m('high_rise'),
+    m('fd'),
+    m('cb')
   ],
   style: [
     {
@@ -166,11 +171,11 @@ const pant: GarmentDef = {
     },
     {
       type: 'single',
-      key: 'pocket_count',
-      label: 'Pocket',
+      key: 'bon',
+      label: 'Bon',
       options: [
-        { value: '1', label: '1 pocket' },
-        { value: '2', label: '2 pocket' }
+        { value: 'single', label: 'Single Bon (−)' },
+        { value: 'double', label: 'Double Bon (=)' }
       ]
     },
     {
@@ -216,11 +221,14 @@ const shirt: GarmentDef = {
   measurements: [
     m('long'),
     m('body'),
+    m('foot'),
+    m('sleeve_length'),
+    m('cuff'),
+    m('sleeve_mohuri'),
+    m('neck'),
     m('belly'),
     m('hip'),
-    m('neck'),
     m('shoulder'),
-    m('sleeve_length'),
     m('sleeve_calf'),
     m('sleeve_mid_width'),
     m('sleeve_mid_bottom')
