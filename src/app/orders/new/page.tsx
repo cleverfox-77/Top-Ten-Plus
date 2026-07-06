@@ -360,6 +360,29 @@ function GarmentCard({
   const selectedFabric = fabrics.find((f) => f.id === item.fabric_id) || null
   const [scan, setScan] = useState('')
 
+  // Fabric charge = selling price × quantity used. Returns null when there's no
+  // selling price / quantity yet (so the price stays whatever was typed).
+  const fabricPrice = (fab: Fabric | undefined | null, qtyStr: string): string | null => {
+    if (!fab || fab.selling_price_per_unit == null) return null
+    const qn = Number(qtyStr)
+    if (!(qn > 0)) return null
+    return String(round2(fab.selling_price_per_unit * qn))
+  }
+
+  const selectFabric = (fab: Fabric | null, id: number | null): void => {
+    const patch: Partial<ItemForm> = { fabric_id: id, fabric_unit: fab ? fab.unit : null }
+    const p = fabricPrice(fab, item.fabric_quantity_used)
+    if (p !== null) patch.price = p
+    onChange(patch)
+  }
+
+  const setFabricQty = (v: string): void => {
+    const patch: Partial<ItemForm> = { fabric_quantity_used: v }
+    const p = fabricPrice(selectedFabric, v)
+    if (p !== null) patch.price = p
+    onChange(patch)
+  }
+
   // Barcode scanners type the product ID then press Enter — look it up and select.
   const handleScan = (code: string): void => {
     const q = code.trim().toLowerCase()
@@ -369,9 +392,9 @@ function GarmentCard({
       toast.error(`No fabric found for barcode "${code.trim()}"`)
       return
     }
-    onChange({ fabric_id: fab.id, fabric_unit: fab.unit })
+    selectFabric(fab, fab.id)
     setScan('')
-    toast.success(`Selected ${fab.name}`)
+    toast.success(`Selected ${fab.name}${fab.selling_price_per_unit != null ? ` · ${fab.selling_price_per_unit}/${fab.unit}` : ''}`)
   }
 
   return (
@@ -466,8 +489,7 @@ function GarmentCard({
               value={item.fabric_id ?? ''}
               onChange={(e) => {
                 const id = e.target.value ? Number(e.target.value) : null
-                const fab = fabrics.find((f) => f.id === id)
-                onChange({ fabric_id: id, fabric_unit: fab ? fab.unit : null })
+                selectFabric(fabrics.find((f) => f.id === id) ?? null, id)
               }}
             >
               <option value="">— none —</option>
@@ -482,11 +504,11 @@ function GarmentCard({
           <label className="mb-1 block text-xs text-gray-500">{t('quantity')}</label>
           <input
             type="number"
-            step="0.1"
+            step="0.01"
             className="input"
             disabled={!item.fabric_id}
             value={item.fabric_quantity_used}
-            onChange={(e) => onChange({ fabric_quantity_used: e.target.value })}
+            onChange={(e) => setFabricQty(e.target.value)}
           />
         </div>
         <div className="col-span-2">
@@ -544,8 +566,11 @@ function StyleControlView({
   values: Record<string, unknown>
   onChange: (key: string, value: unknown) => void
 }): JSX.Element | null {
+  if (ctrl.showWhen && !ctrl.showWhen(values)) return null
+  const current = values[ctrl.key]
+
   if (ctrl.type === 'toggle') {
-    const on = Boolean(values[ctrl.key])
+    const on = Boolean(current)
     return (
       <button
         className={on ? 'chip-on' : 'chip-off'}
@@ -557,8 +582,20 @@ function StyleControlView({
     )
   }
 
-  if (ctrl.showWhen && !ctrl.showWhen(values)) return null
-  const current = values[ctrl.key]
+  if (ctrl.type === 'number' || ctrl.type === 'text') {
+    return (
+      <div className="w-40">
+        <div className="mb-1 text-xs font-medium text-gray-500">{ctrl.label}</div>
+        <input
+          type={ctrl.type === 'number' ? 'number' : 'text'}
+          className="input"
+          value={(current as string) ?? ''}
+          onChange={(e) => onChange(ctrl.key, e.target.value)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="mb-1 text-xs font-medium text-gray-500">{ctrl.label}</div>

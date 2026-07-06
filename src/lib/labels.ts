@@ -81,6 +81,8 @@ const D: Record<string, Label> = {
 
   // --- Measurements (trade jargon — English until staff confirm) ---
   sleeve_mohuri: { en: 'Sleeve Mohuri / Loose' },
+  fd: { en: 'FD' },
+  cb: { en: 'CB' },
   fd_cb: { en: 'FD / CB' },
   shoulder_ds: { en: 'Shoulder DS / Straight' },
   thigh_mohuri: { en: 'Thigh Mohuri / Loose' },
