@@ -30,6 +30,7 @@ export async function hydrate(orderId: number): Promise<Order | undefined> {
       amount_paid: orders.amount_paid,
       due_amount: orders.due_amount,
       due_date: orders.due_date,
+      delivery_code: orders.delivery_code,
       created_by: orders.created_by,
       created_at: orders.created_at,
       customer_name: customers.name,
@@ -95,6 +96,9 @@ export async function createOrderCore(userId: number, input: unknown): Promise<O
   const amountPaid = round2(paidLines.reduce((s, p) => s + p.amount, 0))
   const dueAmount = round2(Math.max(0, totalPrice - amountPaid))
   const primaryMethod = paidLines[0]?.method ?? 'cash'
+  // Random 6-digit delivery code — printed on the invoice and job card so the
+  // shop can match the customer's copy against the garment at handover.
+  const deliveryCode = String(Math.floor(100000 + Math.random() * 900000))
 
   const newId = await db.transaction(async (tx) => {
     const [order] = await tx
@@ -109,6 +113,7 @@ export async function createOrderCore(userId: number, input: unknown): Promise<O
         amount_paid: amountPaid,
         due_amount: dueAmount,
         due_date: data.due_date,
+        delivery_code: deliveryCode,
         created_by: userId
       })
       .returning({ id: orders.id })

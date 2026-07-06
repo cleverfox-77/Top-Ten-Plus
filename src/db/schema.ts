@@ -77,6 +77,7 @@ export const orders = pgTable(
     amount_paid: doublePrecision('amount_paid').notNull().default(0),
     due_amount: doublePrecision('due_amount').notNull().default(0),
     due_date: date('due_date'),
+    delivery_code: text('delivery_code'), // random 6-digit code to match at delivery
     created_by: integer('created_by')
       .notNull()
       .references(() => users.id),

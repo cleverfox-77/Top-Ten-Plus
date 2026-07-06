@@ -29,6 +29,13 @@
       "when": 1783252948373,
       "tag": "0003_cool_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783367279279,
+      "tag": "0004_many_human_torch",
+      "breakpoints": true
     }
   ]
 }

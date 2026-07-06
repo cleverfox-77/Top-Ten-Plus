@@ -81,6 +81,7 @@ export interface Order {
   amount_paid: number
   due_amount: number
   due_date: string | null
+  delivery_code: string | null
   created_by: number
   created_at: string
   // joined fields

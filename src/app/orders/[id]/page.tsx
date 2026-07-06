@@ -247,6 +247,11 @@ function OrderSlip({ order }: { order: Order }): JSX.Element {
         </div>
         <div className="text-right text-sm">
           <div className="text-lg font-bold">Order #{order.id}</div>
+          {order.delivery_code && (
+            <div className="my-1 inline-block rounded border-2 border-brand-600 px-2 py-0.5 text-base font-bold tracking-widest text-brand-700">
+              Code: {order.delivery_code}
+            </div>
+          )}
           <div className="text-gray-600">
             {t('order_date')}: {fmtDate(order.order_date)}
           </div>
@@ -349,16 +354,6 @@ function SlipItem({ item, index }: { item: OrderItem; index: number }): JSX.Elem
           {styles.map((s, i) => (
             <span key={i}>☑ {s}</span>
           ))}
-        </div>
-      )}
-
-      {item.fabric_name && (
-        <div className="text-xs text-gray-600">
-          <span className="font-medium text-gray-700">{t('fabric_used')}: </span>
-          {item.fabric_name}
-          {item.fabric_quantity_used
-            ? ` — ${item.fabric_quantity_used} ${item.fabric_unit ?? ''}`
-            : ''}
         </div>
       )}
     </div>

@@ -106,6 +106,14 @@ function JobCard({
           <div className="text-[10px] uppercase text-gray-500">Order</div>
           <div className="font-semibold">#{order.id}</div>
         </div>
+        {order.delivery_code && (
+          <div>
+            <div className="text-[10px] uppercase text-gray-500">Delivery code</div>
+            <div className="text-base font-bold tracking-widest text-gray-900">
+              {order.delivery_code}
+            </div>
+          </div>
+        )}
         <div>
           <div className="text-[10px] uppercase text-gray-500">Customer</div>
           <div className="font-semibold">{order.customer_name}</div>
