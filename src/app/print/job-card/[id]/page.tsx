@@ -81,12 +81,18 @@ function JobHalf({
   copy: 'cutting' | 'stitching'
 }): JSX.Element {
   const def = GARMENTS[item.garment_type]
-  const measures = def.measurements.filter(
-    (m) =>
-      item.measurements[m.key] !== undefined &&
-      item.measurements[m.key] !== null &&
-      item.measurements[m.key] !== ''
-  )
+  // Body / cuff carry two extra boxes that stack vertically under the main box
+  // (matching the shop's paper form) rather than sitting in their own columns.
+  const STACK_CHILDREN: Record<string, string[]> = {
+    body: ['body_2', 'body_3'],
+    cuff: ['cuff_2', 'cuff_3']
+  }
+  const childKeys = new Set(Object.values(STACK_CHILDREN).flat())
+  const measureColumns = def.measurements.filter((m) => !childKeys.has(m.key))
+  const mVal = (key: string): string => {
+    const v = item.measurements[key]
+    return v === undefined || v === null || v === '' ? '' : toBnDigits(String(v))
+  }
   const styles = describeStyle(item.garment_type, item.style_options)
   const noteVal = item.style_options?.note
   const note = typeof noteVal === 'string' ? noteVal.trim() : ''
@@ -101,18 +107,30 @@ function JobHalf({
   const Measurements = (
     <div className="mb-2">
       <div className="mb-1 text-[10px] font-bold text-gray-700">মাপ (ইঞ্চি) · Measurements</div>
-      {measures.length === 0 ? (
-        <div className="text-xs text-gray-400">কোনো মাপ নেই।</div>
-      ) : (
-        <div className="grid grid-cols-5 gap-x-2 gap-y-1.5">
-          {measures.map((m) => (
-            <div key={m.key} className="border border-gray-400 px-1.5 py-1 text-center">
-              <div className="text-[9px] leading-tight text-gray-600">{bn(m.key)}</div>
-              <div className="text-sm font-bold">{toBnDigits(String(item.measurements[m.key]))}</div>
+      <div className="flex flex-wrap gap-x-1 gap-y-1">
+        {measureColumns.map((m) => {
+          const children = STACK_CHILDREN[m.key] ?? []
+          return (
+            <div key={m.key} className="min-w-[46px] text-center">
+              <div className="border border-gray-500 bg-gray-100 px-1 py-0.5 text-[9px] leading-tight text-gray-700">
+                {bn(m.key)}
+              </div>
+              <div className="border border-t-0 border-gray-500 px-1 py-1 text-sm font-bold" style={{ minHeight: 22 }}>
+                {mVal(m.key)}
+              </div>
+              {children.map((c) => (
+                <div
+                  key={c}
+                  className="border border-t-0 border-gray-500 px-1 py-1 text-sm font-bold"
+                  style={{ minHeight: 22 }}
+                >
+                  {mVal(c)}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
     </div>
   )
 
@@ -194,16 +212,14 @@ function JobHalf({
         </div>
       </div>
 
-      {/* Cutting leads with measurements; stitching leads with style — both carry both. */}
+      {/* Measurements live on the lower (Stitching) copy only; the upper
+          (Cutting) copy carries style + fabric + note. */}
       {isCutting ? (
-        <>
-          {Measurements}
-          {Style}
-        </>
+        <>{Style}</>
       ) : (
         <>
-          {Style}
           {Measurements}
+          {Style}
         </>
       )}
 

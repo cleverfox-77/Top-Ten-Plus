@@ -74,8 +74,7 @@ const coat: GarmentDef = {
     m('neck'),
     m('fd'),
     m('cb'),
-    m('xb'),
-    m('xb_2')
+    m('xb')
   ],
   style: [note()]
 }
