@@ -28,11 +28,20 @@ export function Barcode({
         fontSize: 12,
         margin: 0
       })
+      // Give the generated SVG a viewBox so it can scale down proportionally to
+      // fit a narrow container (e.g. a tight job-card cell) instead of
+      // overflowing at its intrinsic width.
+      const svg = ref.current
+      const w = svg.getAttribute('width')
+      const h = svg.getAttribute('height')
+      if (w && h) svg.setAttribute('viewBox', `0 0 ${w} ${h}`)
     } catch {
       /* ignore invalid values */
     }
   }, [value, height])
-  return <svg ref={ref} className={className} />
+  return (
+    <svg ref={ref} className={className} style={{ maxWidth: '100%', height: 'auto', display: 'block' }} />
+  )
 }
 
 /** Branded header for printed reports: logo on the left, title/subtitle right. */

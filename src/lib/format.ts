@@ -1,3 +1,13 @@
+const BN_DIGITS = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯']
+
+/** Convert every Western digit in the value to a Bengali digit, leaving
+ *  everything else (separators, letters, '-', '.') untouched. Used on the
+ *  Bengali job card so numbers and dates read in Bangla. */
+export function toBnDigits(input: string | number | null | undefined): string {
+  if (input === null || input === undefined) return ''
+  return String(input).replace(/[0-9]/g, (d) => BN_DIGITS[Number(d)])
+}
+
 export function bdt(amount: number | null | undefined): string {
   const n = amount ?? 0
   return `৳ ${n.toLocaleString('en-BD', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`

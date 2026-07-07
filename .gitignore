@@ -10,3 +10,4 @@
 /drizzle/meta/_journal.json.lock
 next-env.d.ts
 *.tsbuildinfo
+.vercel

@@ -8,7 +8,7 @@ import { useToast } from '@/lib/toast'
 import { bn } from '@/lib/labels'
 import { GARMENTS, describeStyle } from '@/lib/garments'
 import { unitToMeter } from '@/lib/units'
-import { fmtDate, nowDateTime } from '@/lib/format'
+import { fmtDate, nowDateTime, toBnDigits } from '@/lib/format'
 import type { Order, OrderItem } from '@/lib/types'
 import { Spinner } from '@/components/ui'
 import { PrintToolbar, Barcode } from '@/components/print'
@@ -108,7 +108,7 @@ function JobHalf({
           {measures.map((m) => (
             <div key={m.key} className="border border-gray-400 px-1.5 py-1 text-center">
               <div className="text-[9px] leading-tight text-gray-600">{bn(m.key)}</div>
-              <div className="text-sm font-bold">{String(item.measurements[m.key])}</div>
+              <div className="text-sm font-bold">{toBnDigits(String(item.measurements[m.key]))}</div>
             </div>
           ))}
         </div>
@@ -122,7 +122,7 @@ function JobHalf({
       <div className="flex flex-wrap gap-1">
         {styles.map((st, i) => (
           <span key={i} className="border border-gray-400 px-1.5 py-0.5 text-[11px]">
-            {st}
+            {toBnDigits(st)}
           </span>
         ))}
       </div>
@@ -145,9 +145,9 @@ function JobHalf({
         <div className="flex items-start gap-2">
           <div className="text-right">
             <div className="text-base font-bold">
-              {bn(item.garment_type)} {itemNo}
+              {bn(item.garment_type)} {toBnDigits(itemNo)}
             </div>
-            <div className="text-[9px] text-gray-500">ছাপা: {nowDateTime()}</div>
+            <div className="text-[9px] text-gray-500">ছাপা: {toBnDigits(nowDateTime())}</div>
           </div>
           {/* Rack token — filled by hand when the garment is hung. */}
           <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full border-2 border-gray-800 text-center">
@@ -160,12 +160,12 @@ function JobHalf({
       <div className="mb-2 grid grid-cols-4 gap-x-2 gap-y-1 text-xs">
         <div>
           <div className="text-[9px] text-gray-500">অর্ডার নং</div>
-          <div className="font-bold">#{order.id}</div>
+          <div className="font-bold">#{toBnDigits(order.id)}</div>
         </div>
         {order.delivery_code && (
           <div>
             <div className="text-[9px] text-gray-500">ডেলিভারি কোড</div>
-            <div className="font-bold tracking-widest">{order.delivery_code}</div>
+            <div className="font-bold tracking-widest">{toBnDigits(order.delivery_code)}</div>
           </div>
         )}
         <div>
@@ -174,23 +174,23 @@ function JobHalf({
         </div>
         <div>
           <div className="text-[9px] text-gray-500">ফোন</div>
-          <div className="font-semibold">{order.customer_phone}</div>
+          <div className="font-semibold">{toBnDigits(order.customer_phone)}</div>
         </div>
         <div>
           <div className="text-[9px] text-gray-500">অর্ডারের তারিখ</div>
-          <div>{fmtDate(order.order_date)}</div>
+          <div>{toBnDigits(fmtDate(order.order_date))}</div>
         </div>
         <div>
           <div className="text-[9px] text-gray-500">ডেলিভারি তারিখ</div>
-          <div className="font-semibold">{fmtDate(order.expected_delivery_date)}</div>
+          <div className="font-semibold">{toBnDigits(fmtDate(order.expected_delivery_date))}</div>
         </div>
         <div>
           <div className="text-[9px] text-gray-500">বিক্রেতা</div>
           <div>{order.created_by_name}</div>
         </div>
-        <div>
+        <div className="min-w-0">
           <div className="text-[9px] text-gray-500">জব কোড</div>
-          <Barcode value={`TTP-${order.id}-${item.id}`} height={22} className="max-h-8" />
+          <Barcode value={`TTP-${order.id}-${item.id}`} height={22} className="w-full" />
         </div>
       </div>
 
@@ -213,9 +213,8 @@ function JobHalf({
           <span className="text-[10px] font-bold text-gray-700">কাপড় · Fabric: </span>
           {item.fabric_name}
           {item.fabric_quantity_used && item.fabric_unit
-            ? ` — ${item.fabric_quantity_used} ${item.fabric_unit} (${unitToMeter(
-                Number(item.fabric_quantity_used),
-                item.fabric_unit
+            ? ` — ${toBnDigits(item.fabric_quantity_used)} ${item.fabric_unit} (${toBnDigits(
+                unitToMeter(Number(item.fabric_quantity_used), item.fabric_unit)
               )} m)`
             : ''}
         </div>
