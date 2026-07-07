@@ -446,19 +446,35 @@ function GarmentCard({
         </div>
       </div>
 
-      <div className="mb-4">
-        <h4 className="mb-2 text-sm font-semibold text-gray-700">Style options</h4>
-        <div className="space-y-3">
-          {def.style.map((ctrl) => (
-            <StyleControlView
-              key={ctrl.key}
-              ctrl={ctrl}
-              values={item.style_options}
-              onChange={setStyle}
-            />
-          ))}
-        </div>
-      </div>
+      {(() => {
+        const inline = def.style.filter((c) => c.type !== 'textarea')
+        const notes = def.style.filter((c) => c.type === 'textarea')
+        return (
+          <>
+            {inline.length > 0 && (
+              <div className="mb-4">
+                <h4 className="mb-2 text-sm font-semibold text-gray-700">Style options</h4>
+                {/* Controls sit on one line (wrapping as needed) — e.g. the pant options. */}
+                <div className="flex flex-wrap gap-x-6 gap-y-3">
+                  {inline.map((ctrl) => (
+                    <StyleControlView
+                      key={ctrl.key}
+                      ctrl={ctrl}
+                      values={item.style_options}
+                      onChange={setStyle}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {notes.map((ctrl) => (
+              <div key={ctrl.key} className="mb-4">
+                <StyleControlView ctrl={ctrl} values={item.style_options} onChange={setStyle} />
+              </div>
+            ))}
+          </>
+        )
+      })()}
 
       <div className="border-t border-gray-100 pt-4">
         {/* Barcode scan — scan a fabric roll's barcode to select it */}
@@ -589,6 +605,21 @@ function StyleControlView({
         <input
           type={ctrl.type === 'number' ? 'number' : 'text'}
           className="input"
+          value={(current as string) ?? ''}
+          onChange={(e) => onChange(ctrl.key, e.target.value)}
+        />
+      </div>
+    )
+  }
+
+  if (ctrl.type === 'textarea') {
+    return (
+      <div>
+        <div className="mb-1 text-xs font-medium text-gray-500">{ctrl.label}</div>
+        <textarea
+          className="input"
+          rows={2}
+          placeholder="Anything the cutting / stitching master should know…"
           value={(current as string) ?? ''}
           onChange={(e) => onChange(ctrl.key, e.target.value)}
         />

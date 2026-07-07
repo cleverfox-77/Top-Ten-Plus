@@ -39,6 +39,14 @@ export type StyleControl =
       label: string
       showWhen?: (values: Record<string, unknown>) => boolean
     }
+  | {
+      // Multi-line free note. Excluded from the customer invoice; shown on the
+      // tailor job card only.
+      type: 'textarea'
+      key: string
+      label: string
+      showWhen?: (values: Record<string, unknown>) => boolean
+    }
 
 export interface GarmentDef {
   type: GarmentType
@@ -48,82 +56,33 @@ export interface GarmentDef {
 
 const m = (key: string): MeasurementField => ({ key, label: t(key) })
 
+const note = (): StyleControl => ({ type: 'textarea', key: 'note', label: 'Note (নোট)' })
+
 // ---------------- Suit / Coat (§3.1) ----------------
+// Kept fields only (per shop request): Long, Body (+2 extra boxes), Foot, Sleeve,
+// Sleeve Mohori, Neck, F, B and XB (two input boxes) — plus a free note.
 const coat: GarmentDef = {
   type: 'coat',
   measurements: [
     m('long'),
     m('body'),
+    m('body_2'),
+    m('body_3'),
     m('foot'),
     m('sleeve_length'),
     m('sleeve_mohuri'),
     m('neck'),
-    m('chest'),
-    m('belly'),
-    m('hip'),
-    m('shoulder'),
     m('fd'),
     m('cb'),
-    m('shoulder_ds')
+    m('xb'),
+    m('xb_2')
   ],
-  style: [
-    {
-      type: 'single',
-      key: 'garment_style',
-      label: 'Garment Style',
-      options: [
-        { value: 'double_breasted', label: 'Double breasted' },
-        { value: 'single_breasted', label: 'Single breasted' },
-        { value: 'dinner_coat', label: 'Dinner Coat' },
-        { value: 'prince_coat', label: 'Prince coat' },
-        { value: 'mujib_coat', label: 'Mujib coat' },
-        { value: 'sherwani', label: 'Sherwani' },
-        { value: 'jubba', label: 'Jubba' },
-        { value: 'coti', label: 'Coti' },
-        { value: 'band_collar_coat', label: 'Band collar coat' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'button_count',
-      label: 'Button Count',
-      options: Array.from({ length: 8 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))
-    },
-    // Bottom shape & vent apply to all suits; button style is single-breasted only.
-    {
-      type: 'single',
-      key: 'sb_bottom_shape',
-      label: 'Bottom Shape',
-      options: [
-        { value: 'lob_round', label: 'Round at bottom (নিচে গোল)' },
-        { value: 'straight_bottom', label: 'Straight at bottom (নিচে সোজা)' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'sb_button_style',
-      label: 'Button Style',
-      showWhen: (v) => v.garment_style === 'single_breasted',
-      options: [
-        { value: '2_button', label: '2 Button' },
-        { value: '3_button', label: '3 Button' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'sb_side_vent',
-      label: 'Vent',
-      options: [
-        { value: 'side_open', label: 'Side open (সাইড খোলা)' },
-        { value: 'side_closed', label: 'No Open' },
-        { value: 'back_open', label: 'Back open (পিছনে খোলা)' }
-      ]
-    },
-    { type: 'toggle', key: 'xb', label: 'XB' }
-  ]
+  style: [note()]
 }
 
 // ---------------- Pant (§3.2) ----------------
+// Kept measurements: Long, Waist, Hip, Thigh, Mohori, High, F, B.
+// Style: five choose-one controls shown on one line.
 const pant: GarmentDef = {
   type: 'pant',
   measurements: [
@@ -139,148 +98,73 @@ const pant: GarmentDef = {
   style: [
     {
       type: 'single',
-      key: 'pant_type',
-      label: 'Type',
+      key: 'pocket',
+      label: 'Pocket (পকেট)',
       options: [
-        { value: 'pant', label: 'Pant' },
-        { value: 'payjama', label: 'Payjama / Trouser (পায়জামা)' }
-      ]
-    },
-    { type: 'number', key: 'pant_count', label: 'No. of pants' },
-    { type: 'text', key: 'pant_colors', label: 'Colours (if multiple)' },
-    {
-      type: 'single',
-      key: 'pant_front',
-      label: 'Front',
-      options: [
-        { value: 'ds_front', label: 'DS at front (সামনে ডিএস)' },
-        { value: 'straight_front', label: 'Straight at front (সামনে সোজা)' }
+        { value: '1', label: '1' },
+        { value: '2', label: '2' }
       ]
     },
     {
       type: 'single',
-      key: 'lob',
-      label: 'Lob',
+      key: 'beg_pocket',
+      label: 'Beg Pocket (ব্যাগ পকেট)',
       options: [
-        { value: '5', label: '5' },
-        { value: '6', label: '6' },
-        { value: '7', label: '7' },
-        { value: '8', label: '8' },
-        { value: 'flat', label: 'Flat' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'bon',
-      label: 'Bon',
-      options: [
-        { value: 'single', label: 'Single Bon (−)' },
-        { value: 'double', label: 'Double Bon (=)' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'back_pocket',
-      label: 'Back Pocket',
-      options: [
-        { value: 'none', label: 'None (−)' },
-        { value: '1', label: '1 (+)' },
-        { value: '2', label: '2 (+)' }
+        { value: '=', label: '=' },
+        { value: '-', label: '-' }
       ]
     },
     {
       type: 'single',
       key: 'ticken',
-      label: 'Tickin',
+      label: 'Ticken (টিকেন)',
       options: [
-        { value: 'yes', label: 'Yes' },
-        { value: 'no', label: 'No' }
+        { value: 'yes', label: 'Yes (হ্যাঁ)' },
+        { value: 'no', label: 'No (না)' }
       ]
     },
     {
       type: 'single',
       key: 'folding',
-      label: 'Folding',
+      label: 'Folding (ভাঁজ)',
       options: [
-        { value: 'yes', label: 'Yes' },
-        { value: 'no', label: 'No' }
+        { value: 'yes', label: 'Yes (হ্যাঁ)' },
+        { value: 'no', label: 'No (না)' }
       ]
     },
-    { type: 'toggle', key: 'two_kuchi', label: '2 Kuchi' },
-    { type: 'toggle', key: 'short_2_kuchi_cross_pocket', label: 'Choto 2 Kuchi (ছোট ২ কুচি)' },
-    { type: 'toggle', key: 'no_kuchi', label: 'No kuchi' },
-    { type: 'toggle', key: 'cross_pocket', label: 'Cross pocket' },
-    { type: 'toggle', key: 'straight_pocket', label: 'Straight pocket' },
-    { type: 'toggle', key: 'hip_pocket_at_back', label: 'Hip pocket at back' }
+    {
+      type: 'single',
+      key: 'lob',
+      label: 'Loob (লুব)',
+      options: [
+        { value: '5', label: '5' },
+        { value: '6', label: '6' },
+        { value: '7', label: '7' },
+        { value: '8', label: '8' }
+      ]
+    }
   ]
 }
 
 // ---------------- Shirt (§3.3) ----------------
+// Kept fields only: Long, Body (+2 extra boxes), Foot, Sleeve, Cuff (+2 extra
+// boxes), Sleeve Mohori, Neck — plus a free note.
 const shirt: GarmentDef = {
   type: 'shirt',
   measurements: [
     m('long'),
     m('body'),
+    m('body_2'),
+    m('body_3'),
     m('foot'),
     m('sleeve_length'),
     m('cuff'),
+    m('cuff_2'),
+    m('cuff_3'),
     m('sleeve_mohuri'),
-    m('neck'),
-    m('belly'),
-    m('hip'),
-    m('shoulder'),
-    m('sleeve_calf'),
-    m('sleeve_mid_width'),
-    m('sleeve_mid_bottom')
+    m('neck')
   ],
-  style: [
-    {
-      type: 'single',
-      key: 'plate_style',
-      label: 'Plate Style',
-      options: [
-        { value: 'one_shirt', label: 'One shirt (no plate)' },
-        { value: 'box_plate', label: 'Box plate' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'pocket',
-      label: 'Pocket',
-      options: [
-        { value: 'one_pocket', label: 'One pocket' },
-        { value: 'no_pocket', label: 'No pocket' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'collar',
-      label: 'Collar',
-      options: [
-        { value: 'semi_aero', label: '2.5 inch semi aero collar' },
-        { value: 'full_chinese', label: 'Full Chinese shirt' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'fit',
-      label: 'Fit',
-      options: [
-        { value: 'medium_loose', label: 'Medium loose' },
-        { value: 'over_loose', label: 'Over loose' },
-        { value: 'fitting', label: 'Fitting' }
-      ]
-    },
-    {
-      type: 'single',
-      key: 'side_cut',
-      label: 'Side Cut',
-      options: [
-        { value: 'half_wide', label: 'Half wide shirt' },
-        { value: 'two_inch_side_cut', label: '2 inch side cut' }
-      ]
-    }
-  ]
+  style: [note()]
 }
 
 // ---------------- Panjabi (§3.4) ----------------
@@ -317,6 +201,8 @@ export function describeStyle(type: GarmentType, values: Record<string, unknown>
   const parts: string[] = []
   for (const ctrl of def.style) {
     if (ctrl.showWhen && !ctrl.showWhen(values)) continue
+    // The free note is rendered separately (job card only), never as a style chip.
+    if (ctrl.type === 'textarea') continue
     const val = values[ctrl.key]
     if (ctrl.type === 'toggle') {
       if (val) parts.push(ctrl.label)

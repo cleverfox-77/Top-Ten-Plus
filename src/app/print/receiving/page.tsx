@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t } from '@/lib/labels'
 import { bdt, fmtDateTime, reportRange } from '@/lib/format'
-import { fromBase, round2 } from '@/lib/units'
+import { fromBase, round2, withMeter } from '@/lib/units'
 import type { StockMovement, StockMovementFilters } from '@/lib/types'
 import { Spinner } from '@/components/ui'
 import { PrintToolbar, ReportHeader } from '@/components/print'
@@ -73,9 +73,7 @@ function ReceivingReport(): JSX.Element {
                     <td className="td font-mono text-xs">{m.challan_number || '—'}</td>
                     <td className="td">{m.fabric_name}</td>
                     <td className="td">{m.supplier_name || '—'}</td>
-                    <td className="td text-right">
-                      {round2(fromBase(m.change_amount, u))} {u}
-                    </td>
+                    <td className="td text-right">{withMeter(m.change_amount, u)}</td>
                     <td className="td text-right">{m.unit_cost != null ? bdt(m.unit_cost) : '—'}</td>
                     <td className="td text-right">{bdt(value(m))}</td>
                     <td className="td">{m.payment_type === 'due' ? 'Due' : 'Cash'}</td>

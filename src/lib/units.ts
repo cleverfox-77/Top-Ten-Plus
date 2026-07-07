@@ -40,6 +40,24 @@ export function formatFromBase(baseValue: number, unit: FabricUnit): string {
   return `${round2(v)} ${label}`
 }
 
+/** Convert a base (cm) quantity to meters, rounded. */
+export function toMeter(baseValue: number): number {
+  return round2(baseValue / CM_PER_UNIT.meter)
+}
+
+/** Convert a value entered in `unit` directly to meters, rounded. */
+export function unitToMeter(value: number, unit: FabricUnit): number {
+  return round2(toBase(value, unit) / CM_PER_UNIT.meter)
+}
+
+/** Show a base (cm) quantity in its display unit AND the meter equivalent,
+ *  e.g. "3.5 gaz (3.2 m)". When the unit already is meter, the suffix is dropped. */
+export function withMeter(baseValue: number, unit: FabricUnit): string {
+  const primary = `${round2(fromBase(baseValue, unit))} ${unit}`
+  if (unit === 'meter') return primary
+  return `${primary} (${toMeter(baseValue)} m)`
+}
+
 export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100
 }

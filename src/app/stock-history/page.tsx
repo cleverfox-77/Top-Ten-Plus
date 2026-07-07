@@ -6,7 +6,7 @@ import { Filter, Printer } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t } from '@/lib/labels'
-import { fromBase, round2 } from '@/lib/units'
+import { withMeter } from '@/lib/units'
 import { fmtDateTime } from '@/lib/format'
 import type { Fabric, StockMovement } from '@/lib/types'
 import { PageHeader, EmptyState, Spinner } from '@/components/ui'
@@ -150,7 +150,6 @@ export default function StockHistoryPage(): JSX.Element {
             <tbody className="divide-y divide-gray-100">
               {rows.map((m) => {
                 const unit = m.fabric_unit ?? 'gaz'
-                const change = round2(fromBase(m.change_amount, unit))
                 return (
                   <tr key={m.id} className="hover:bg-gray-50">
                     <td className="td whitespace-nowrap text-gray-500">{fmtDateTime(m.created_at)}</td>
@@ -162,7 +161,7 @@ export default function StockHistoryPage(): JSX.Element {
                       }`}
                     >
                       {m.change_amount < 0 ? '' : '+'}
-                      {change} {unit}
+                      {withMeter(m.change_amount, unit)}
                     </td>
                     <td className="td">{m.reference_order_id ? `#${m.reference_order_id}` : '—'}</td>
                     <td className="td text-gray-500">{m.created_by_name}</td>

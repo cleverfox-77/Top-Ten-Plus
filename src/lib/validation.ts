@@ -39,6 +39,26 @@ export const fabricSchema = z.object({
   payment_type: paymentTypeSchema.nullable().optional()
 })
 
+// One fabric row inside a bulk stock intake.
+export const bulkFabricItemSchema = z.object({
+  product_id: z.string().trim().min(1, 'Product ID / barcode is required'),
+  name: z.string().trim().min(1, 'Fabric name is required'),
+  color: z.string().trim().nullable().optional(),
+  unit: fabricUnitSchema,
+  quantity: z.number().nonnegative('Quantity cannot be negative'),
+  cost_price_per_unit: z.number().nonnegative().nullable().optional(),
+  selling_price_per_unit: z.number().nonnegative().nullable().optional(),
+  low_stock_threshold: z.number().nonnegative().default(0)
+})
+
+// Add several fabrics/stocks at once, sharing supplier / challan / payment.
+export const bulkFabricsSchema = z.object({
+  supplier_id: z.number().int().positive().nullable().optional(),
+  challan_number: z.string().trim().nullable().optional(),
+  payment_type: paymentTypeSchema.nullable().optional(),
+  items: z.array(bulkFabricItemSchema).min(1, 'Add at least one fabric')
+})
+
 export const supplierSchema = z.object({
   name: z.string().trim().min(1, 'Supplier name is required'),
   phone: z.string().trim().nullable().optional(),

@@ -71,6 +71,7 @@ export async function getSupplierDetail(id: number) {
         id: stockMovements.id,
         fabric_id: stockMovements.fabric_id,
         fabric_name: fabrics.name,
+        fabric_product_id: fabrics.product_id,
         fabric_unit: fabrics.unit,
         change_amount: stockMovements.change_amount,
         reason: stockMovements.reason,

@@ -1,10 +1,10 @@
 'use server'
 
-import { and, desc, eq, gte, ilike, lte, or, ne, sql, gt } from 'drizzle-orm'
+import { and, desc, eq, gte, ilike, inArray, lte, or, ne, sql, gt } from 'drizzle-orm'
 import { db } from '@/db'
 import { fabrics, stockMovements, suppliers, users } from '@/db/schema'
 import { requireAuth, requireAdmin } from '@/lib/session'
-import { fabricSchema, receiveStockSchema, returnStockSchema } from '@/lib/validation'
+import { fabricSchema, bulkFabricsSchema, receiveStockSchema, returnStockSchema } from '@/lib/validation'
 import { toBase } from '@/lib/units'
 import { run } from '@/lib/result'
 import type { Fabric, FabricUnit, StockMovement, StockMovementFilters } from '@/lib/types'
@@ -99,6 +99,61 @@ export async function createFabric(input: unknown) {
         })
       }
       return row
+    })
+  })
+}
+
+/** Add several fabrics/stocks in one go (shared supplier, challan & payment).
+ *  Returns every created fabric so the caller can print a chalan copy. */
+export async function createFabricsBulk(input: unknown) {
+  return run<Fabric[]>(async () => {
+    const admin = await requireAdmin()
+    const data = bulkFabricsSchema.parse(input)
+
+    const ids = data.items.map((i) => i.product_id)
+    const dupInBatch = ids.find((id, i) => ids.indexOf(id) !== i)
+    if (dupInBatch) throw new Error(`Duplicate product ID / barcode "${dupInBatch}" in the list`)
+    const existing = await db
+      .select({ product_id: fabrics.product_id })
+      .from(fabrics)
+      .where(inArray(fabrics.product_id, ids))
+    if (existing.length) {
+      throw new Error(`Product ID / barcode "${existing[0].product_id}" already exists`)
+    }
+
+    return db.transaction(async (tx) => {
+      const created: Fabric[] = []
+      for (const it of data.items) {
+        const baseQty = toBase(it.quantity, it.unit)
+        const baseLow = toBase(it.low_stock_threshold ?? 0, it.unit)
+        const [row] = await tx
+          .insert(fabrics)
+          .values({
+            product_id: it.product_id,
+            name: it.name,
+            color: it.color ?? null,
+            unit: it.unit,
+            quantity_base: baseQty,
+            cost_price_per_unit: it.cost_price_per_unit ?? null,
+            selling_price_per_unit: it.selling_price_per_unit ?? null,
+            low_stock_threshold: baseLow
+          })
+          .returning()
+        if (baseQty > 0) {
+          await tx.insert(stockMovements).values({
+            fabric_id: row.id,
+            change_amount: baseQty,
+            reason: 'new_stock',
+            supplier_id: data.supplier_id ?? null,
+            challan_number: data.challan_number ?? null,
+            unit_cost: it.cost_price_per_unit ?? null,
+            payment_type: data.payment_type ?? null,
+            created_by: admin.id
+          })
+        }
+        created.push(row)
+      }
+      return created
     })
   })
 }
@@ -214,6 +269,7 @@ const movementCols = {
   id: stockMovements.id,
   fabric_id: stockMovements.fabric_id,
   fabric_name: fabrics.name,
+  fabric_product_id: fabrics.product_id,
   fabric_unit: fabrics.unit,
   change_amount: stockMovements.change_amount,
   reason: stockMovements.reason,

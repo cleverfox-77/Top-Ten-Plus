@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, UserPlus, Pencil, Eye } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Search, UserPlus, Pencil, Eye, Printer } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t } from '@/lib/labels'
 import { bdt, fmtDateTime } from '@/lib/format'
-import { fromBase, round2 } from '@/lib/units'
+import { withMeter } from '@/lib/units'
 import type { Supplier, SupplierDetail } from '@/lib/types'
 import { PageHeader, Modal, EmptyState, Spinner } from '@/components/ui'
+import { Barcode } from '@/components/print'
 import SupplierModal from '@/components/SupplierModal'
 
 export default function SuppliersPage(): JSX.Element {
@@ -134,8 +136,18 @@ function SupplierDetailModal({
   detail: SupplierDetail
   onClose: () => void
 }): JSX.Element {
+  const router = useRouter()
   return (
     <Modal open onClose={onClose} title={detail.name} width="max-w-3xl">
+      <div className="mb-3 flex justify-end">
+        <button
+          className="btn-secondary"
+          onClick={() => router.push(`/print/supplier/${detail.id}`)}
+        >
+          <Printer size={16} /> Print details
+        </button>
+      </div>
+
       <div className="mb-4 grid grid-cols-3 gap-3 text-sm">
         <div className="card p-3">
           <div className="text-xs text-gray-500">Total received (value)</div>
@@ -178,6 +190,7 @@ function SupplierDetailModal({
             <tr>
               <th className="th">When</th>
               <th className="th">Fabric</th>
+              <th className="th">Barcode</th>
               <th className="th">{t('challan')}</th>
               <th className="th text-right">Qty</th>
               <th className="th text-right">Cost/unit</th>
@@ -191,10 +204,15 @@ function SupplierDetailModal({
                 <tr key={r.id}>
                   <td className="td whitespace-nowrap text-gray-500">{fmtDateTime(r.created_at)}</td>
                   <td className="td">{r.fabric_name}</td>
-                  <td className="td font-mono text-xs">{r.challan_number || '—'}</td>
-                  <td className="td text-right">
-                    {round2(fromBase(r.change_amount, unit))} {unit}
+                  <td className="td">
+                    {r.fabric_product_id ? (
+                      <Barcode value={r.fabric_product_id} height={26} className="max-h-9" />
+                    ) : (
+                      '—'
+                    )}
                   </td>
+                  <td className="td font-mono text-xs">{r.challan_number || '—'}</td>
+                  <td className="td text-right">{withMeter(r.change_amount, unit)}</td>
                   <td className="td text-right">{r.unit_cost != null ? bdt(r.unit_cost) : '—'}</td>
                   <td className="td">
                     <span

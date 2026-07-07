@@ -64,6 +64,7 @@ export const api = {
     findByBarcode: async (code: string) => unwrap<Fabric | undefined>(await F.findByBarcode(code)),
     lowStock: async () => unwrap<Fabric[]>(await F.lowStockFabrics()),
     create: async (input: unknown) => unwrap<Fabric>(await F.createFabric(input)),
+    createBulk: async (input: unknown) => unwrap<Fabric[]>(await F.createFabricsBulk(input)),
     update: async (id: number, input: unknown) => unwrap<Fabric>(await F.updateFabric(id, input)),
     receiveStock: async (input: unknown) => unwrap<Fabric>(await F.receiveStock(input)),
     correctStock: async (id: number, qty: number, unit: FabricUnit) =>

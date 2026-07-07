@@ -70,9 +70,13 @@ const D: Record<string, Label> = {
   // --- Measurements (Bengali provided for every field) ---
   long: { en: 'Long', bn: 'লম্বা' },
   body: { en: 'Body', bn: 'বডি' },
+  body_2: { en: 'Body 2', bn: 'বডি ২' },
+  body_3: { en: 'Body 3', bn: 'বডি ৩' },
   foot: { en: 'Foot', bn: 'ফুট' },
   sleeve_length: { en: 'Sleeve', bn: 'হাতা' },
   cuff: { en: 'Cuff', bn: 'কাফ' },
+  cuff_2: { en: 'Cuff 2', bn: 'কাফ ২' },
+  cuff_3: { en: 'Cuff 3', bn: 'কাফ ৩' },
   sleeve_mohuri: { en: 'Sleeve Mohori', bn: 'হাতা মহুরি' },
   neck: { en: 'Neck', bn: 'গলা' },
   chest: { en: 'Chest', bn: 'বুক' },
@@ -85,6 +89,9 @@ const D: Record<string, Label> = {
   high_rise: { en: 'High', bn: 'হাই' },
   fd: { en: 'F', bn: 'এফ' },
   cb: { en: 'B', bn: 'বি' },
+  xb: { en: 'XB', bn: 'এক্সবি' },
+  xb_2: { en: 'XB 2', bn: 'এক্সবি ২' },
+  note: { en: 'Note', bn: 'নোট' },
   fd_cb: { en: 'F / B' },
   shoulder_ds: { en: 'Shoulder DS', bn: 'কাঁধ ডিএস' },
   sleeve_calf: { en: 'Sleeve Calf', bn: 'হাতা কাফ' },
@@ -114,6 +121,12 @@ export function t(key: string): string {
 /** Returns just the English part (for compact contexts, exports, etc.). */
 export function en(key: string): string {
   return D[key]?.en ?? key
+}
+
+/** Returns the Bangla term if one exists, otherwise the English part.
+ *  Used by the Bengali job card the cutting/stitching masters read. */
+export function bn(key: string): string {
+  return D[key]?.bn ?? D[key]?.en ?? key
 }
 
 export const PAYMENT_LABELS: Record<string, string> = {

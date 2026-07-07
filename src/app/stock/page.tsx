@@ -2,12 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Plus, Pencil, PackagePlus, Wrench, History, Printer, Barcode } from 'lucide-react'
+import {
+  Search,
+  Plus,
+  Pencil,
+  PackagePlus,
+  Wrench,
+  History,
+  Printer,
+  Barcode,
+  Layers,
+  Trash2
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { t } from '@/lib/labels'
-import { ALL_UNITS, UNIT_LABELS, fromBase, round2 } from '@/lib/units'
+import { ALL_UNITS, UNIT_LABELS, fromBase, round2, withMeter, unitToMeter } from '@/lib/units'
 import type { Fabric, FabricUnit, StockMovement, Supplier } from '@/lib/types'
 import { PageHeader, Modal, Field, EmptyState, Spinner } from '@/components/ui'
 import SupplierModal from '@/components/SupplierModal'
@@ -21,6 +32,7 @@ export default function StockPage(): JSX.Element {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [editOpen, setEditOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [editing, setEditing] = useState<Fabric | null>(null)
   const [adjust, setAdjust] = useState<{ fabric: Fabric; mode: 'add' | 'correct' } | null>(null)
   const [history, setHistory] = useState<Fabric | null>(null)
@@ -46,15 +58,20 @@ export default function StockPage(): JSX.Element {
         subtitle={isAdmin ? 'Add and manage fabric inventory' : 'Read-only view of current stock'}
         actions={
           isAdmin && (
-            <button
-              className="btn-primary"
-              onClick={() => {
-                setEditing(null)
-                setEditOpen(true)
-              }}
-            >
-              <Plus size={18} /> New fabric
-            </button>
+            <>
+              <button className="btn-secondary" onClick={() => setBulkOpen(true)}>
+                <Layers size={18} /> Add multiple
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setEditing(null)
+                  setEditOpen(true)
+                }}
+              >
+                <Plus size={18} /> New fabric
+              </button>
+            </>
           )
         }
       />
@@ -93,7 +110,6 @@ export default function StockPage(): JSX.Element {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {rows.map((f) => {
-                const qty = round2(fromBase(f.quantity_base, f.unit))
                 const low = f.low_stock_threshold > 0 && f.quantity_base <= f.low_stock_threshold
                 return (
                   <tr key={f.id} className="hover:bg-gray-50">
@@ -102,7 +118,7 @@ export default function StockPage(): JSX.Element {
                     <td className="td text-gray-500">{f.color || '—'}</td>
                     <td className="td text-right">
                       <span className={low ? 'font-semibold text-amber-700' : ''}>
-                        {qty} {f.unit}
+                        {withMeter(f.quantity_base, f.unit)}
                       </span>
                       {low && <span className="ml-2 badge bg-amber-100 text-amber-800">Low</span>}
                     </td>
@@ -180,6 +196,18 @@ export default function StockPage(): JSX.Element {
           // New fabric → open its printable stock intake receipt straight away.
           if (isCreate) router.push(`/print/fabric/${saved.id}`)
           else load(search)
+        }}
+      />
+
+      <BulkFabricModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onSaved={(created, challan) => {
+          setBulkOpen(false)
+          // Straight to the printable chalan copy of everything just added.
+          const q = new URLSearchParams({ ids: created.map((c) => c.id).join(',') })
+          if (challan) q.set('challan', challan)
+          router.push(`/print/stock-chalan?${q.toString()}`)
         }}
       />
 
@@ -351,6 +379,11 @@ function FabricModal({
               value={form.quantity}
               onChange={(e) => setQuantity(Number(e.target.value))}
             />
+            {Number(form.quantity) > 0 && form.unit !== 'meter' && (
+              <p className="mt-1 text-xs text-gray-500">
+                = {unitToMeter(Number(form.quantity), form.unit)} meter
+              </p>
+            )}
           </Field>
         )}
         <Field label={t('total_cost')} hint="Total paid for the batch (BDT)">
@@ -537,6 +570,11 @@ function AdjustModal({
               onChange={(e) => setQty(Number(e.target.value))}
               autoFocus
             />
+            {Number(qty) > 0 && fabric.unit !== 'meter' && (
+              <p className="mt-1 text-xs text-gray-500">
+                = {unitToMeter(Number(qty), fabric.unit)} meter
+              </p>
+            )}
           </Field>
           <Field label={t('challan')}>
             <input
@@ -632,6 +670,262 @@ function AdjustModal({
   )
 }
 
+interface BulkRow {
+  key: number
+  product_id: string
+  name: string
+  color: string
+  unit: FabricUnit
+  quantity: string
+  cost_price_per_unit: string
+  selling_price_per_unit: string
+}
+
+let bulkKey = 0
+const blankBulkRow = (): BulkRow => ({
+  key: ++bulkKey,
+  product_id: '',
+  name: '',
+  color: '',
+  unit: 'gaz',
+  quantity: '',
+  cost_price_per_unit: '',
+  selling_price_per_unit: ''
+})
+
+function BulkFabricModal({
+  open,
+  onClose,
+  onSaved
+}: {
+  open: boolean
+  onClose: () => void
+  onSaved: (created: Fabric[], challan: string) => void
+}): JSX.Element {
+  const toast = useToast()
+  const [rows, setRows] = useState<BulkRow[]>([blankBulkRow(), blankBulkRow(), blankBulkRow()])
+  const [supplierId, setSupplierId] = useState('')
+  const [challan, setChallan] = useState('')
+  const [paymentType, setPaymentType] = useState<'cash' | 'due'>('cash')
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [supplierModal, setSupplierModal] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      api.suppliers.list().then(setSuppliers).catch(() => {})
+      setRows([blankBulkRow(), blankBulkRow(), blankBulkRow()])
+      setSupplierId('')
+      setChallan('')
+      setPaymentType('cash')
+    }
+  }, [open])
+
+  const patchRow = (key: number, patch: Partial<BulkRow>): void =>
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)))
+  const addRow = (): void => setRows((prev) => [...prev, blankBulkRow()])
+  const removeRow = (key: number): void =>
+    setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.key !== key) : prev))
+
+  const save = async (): Promise<void> => {
+    // Only rows with at least a product id + name are submitted.
+    const filled = rows.filter((r) => r.product_id.trim() && r.name.trim())
+    if (filled.length === 0) {
+      toast.error('Fill in at least one fabric (barcode + name)')
+      return
+    }
+    setBusy(true)
+    try {
+      const created = await api.fabrics.createBulk({
+        supplier_id: supplierId ? Number(supplierId) : null,
+        challan_number: challan.trim() || null,
+        payment_type: paymentType,
+        items: filled.map((r) => ({
+          product_id: r.product_id.trim(),
+          name: r.name.trim(),
+          color: r.color.trim() || null,
+          unit: r.unit,
+          quantity: Number(r.quantity) || 0,
+          cost_price_per_unit: r.cost_price_per_unit === '' ? null : Number(r.cost_price_per_unit),
+          selling_price_per_unit:
+            r.selling_price_per_unit === '' ? null : Number(r.selling_price_per_unit)
+        }))
+      })
+      toast.success(`${created.length} fabric${created.length === 1 ? '' : 's'} added`)
+      onSaved(created, challan.trim())
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to add stock')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add multiple stocks" width="max-w-5xl">
+      <div className="mb-4 grid grid-cols-3 gap-4">
+        <Field label={t('supplier')}>
+          <div className="flex gap-1">
+            <select
+              className="input"
+              value={supplierId}
+              onChange={(e) => setSupplierId(e.target.value)}
+            >
+              <option value="">— none —</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn-secondary shrink-0 px-2"
+              onClick={() => setSupplierModal(true)}
+              title="Add supplier"
+            >
+              +
+            </button>
+          </div>
+        </Field>
+        <Field label={t('challan')}>
+          <input className="input" value={challan} onChange={(e) => setChallan(e.target.value)} />
+        </Field>
+        <Field label={t('payment_type')}>
+          <select
+            className="input"
+            value={paymentType}
+            onChange={(e) => setPaymentType(e.target.value as 'cash' | 'due')}
+          >
+            <option value="cash">Cash (paid)</option>
+            <option value="due">Due (credit)</option>
+          </select>
+        </Field>
+      </div>
+
+      <div className="max-h-[45vh] overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white">
+            <tr className="text-left text-xs uppercase text-gray-500">
+              <th className="px-1 py-1">{t('product_id')} *</th>
+              <th className="px-1 py-1">{t('name')} *</th>
+              <th className="px-1 py-1">{t('color')}</th>
+              <th className="px-1 py-1">{t('unit')}</th>
+              <th className="px-1 py-1 text-right">{t('quantity')}</th>
+              <th className="px-1 py-1 text-right">Cost/unit</th>
+              <th className="px-1 py-1 text-right">Sell/unit</th>
+              <th className="px-1 py-1"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key} className="align-top">
+                <td className="px-1 py-1">
+                  <input
+                    className="input"
+                    value={r.product_id}
+                    placeholder="Barcode"
+                    onChange={(e) => patchRow(r.key, { product_id: e.target.value })}
+                  />
+                </td>
+                <td className="px-1 py-1">
+                  <input
+                    className="input"
+                    value={r.name}
+                    onChange={(e) => patchRow(r.key, { name: e.target.value })}
+                  />
+                </td>
+                <td className="px-1 py-1">
+                  <input
+                    className="input"
+                    value={r.color}
+                    onChange={(e) => patchRow(r.key, { color: e.target.value })}
+                  />
+                </td>
+                <td className="px-1 py-1">
+                  <select
+                    className="input"
+                    value={r.unit}
+                    onChange={(e) => patchRow(r.key, { unit: e.target.value as FabricUnit })}
+                  >
+                    {ALL_UNITS.map((u) => (
+                      <option key={u} value={u}>
+                        {UNIT_LABELS[u].split(' ')[0]}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-1 py-1">
+                  <input
+                    type="number"
+                    className="input text-right"
+                    value={r.quantity}
+                    onChange={(e) => patchRow(r.key, { quantity: e.target.value })}
+                  />
+                  {Number(r.quantity) > 0 && r.unit !== 'meter' && (
+                    <p className="mt-0.5 text-right text-[10px] text-gray-400">
+                      {unitToMeter(Number(r.quantity), r.unit)} m
+                    </p>
+                  )}
+                </td>
+                <td className="px-1 py-1">
+                  <input
+                    type="number"
+                    className="input text-right"
+                    value={r.cost_price_per_unit}
+                    onChange={(e) => patchRow(r.key, { cost_price_per_unit: e.target.value })}
+                  />
+                </td>
+                <td className="px-1 py-1">
+                  <input
+                    type="number"
+                    className="input text-right"
+                    value={r.selling_price_per_unit}
+                    onChange={(e) => patchRow(r.key, { selling_price_per_unit: e.target.value })}
+                  />
+                </td>
+                <td className="px-1 py-1 text-center">
+                  <button
+                    type="button"
+                    className="btn-ghost px-2 text-red-600"
+                    onClick={() => removeRow(r.key)}
+                    title="Remove row"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <button className="btn-secondary mt-3" onClick={addRow}>
+        <Plus size={16} /> Add row
+      </button>
+
+      <div className="mt-5 flex justify-end gap-2">
+        <button className="btn-secondary" onClick={onClose}>
+          {t('cancel')}
+        </button>
+        <button className="btn-primary" onClick={save} disabled={busy}>
+          {busy ? <Spinner /> : 'Save & print chalan'}
+        </button>
+      </div>
+
+      <SupplierModal
+        open={supplierModal}
+        supplier={null}
+        onClose={() => setSupplierModal(false)}
+        onSaved={(s) => {
+          setSupplierModal(false)
+          setSuppliers((prev) => [...prev, s])
+          setSupplierId(String(s.id))
+        }}
+      />
+    </Modal>
+  )
+}
+
 function MovementsModal({ fabric, onClose }: { fabric: Fabric; onClose: () => void }): JSX.Element {
   const toast = useToast()
   const [rows, setRows] = useState<StockMovement[]>([])
@@ -680,7 +974,7 @@ function MovementsModal({ fabric, onClose }: { fabric: Fabric; onClose: () => vo
                   }`}
                 >
                   {m.change_amount < 0 ? '' : '+'}
-                  {round2(fromBase(m.change_amount, fabric.unit))} {fabric.unit}
+                  {withMeter(m.change_amount, fabric.unit)}
                 </td>
                 <td className="td">{m.reference_order_id ? `#${m.reference_order_id}` : '—'}</td>
                 <td className="td text-gray-500">{m.created_by_name}</td>

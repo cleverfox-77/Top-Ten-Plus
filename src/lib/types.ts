@@ -98,6 +98,7 @@ export interface StockMovement {
   id: number
   fabric_id: number
   fabric_name?: string
+  fabric_product_id?: string | null
   fabric_unit?: FabricUnit
   change_amount: number // in centimeters; negative = deduction
   reason: StockReason

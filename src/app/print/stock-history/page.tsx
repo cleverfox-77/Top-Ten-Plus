@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
-import { fromBase, round2 } from '@/lib/units'
+import { withMeter } from '@/lib/units'
 import { fmtDateTime, reportRange } from '@/lib/format'
 import type { StockMovement, StockMovementFilters } from '@/lib/types'
 import { Spinner } from '@/components/ui'
@@ -73,7 +73,6 @@ function StockHistoryReport(): JSX.Element {
             <tbody className="divide-y divide-gray-100">
               {rows.map((m) => {
                 const unit = m.fabric_unit ?? 'gaz'
-                const change = round2(fromBase(m.change_amount, unit))
                 return (
                   <tr key={m.id}>
                     <td className="td whitespace-nowrap">{fmtDateTime(m.created_at)}</td>
@@ -81,7 +80,7 @@ function StockHistoryReport(): JSX.Element {
                     <td className="td">{REASONS[m.reason]}</td>
                     <td className={`td text-right ${m.change_amount < 0 ? 'text-red-600' : 'text-green-700'}`}>
                       {m.change_amount < 0 ? '' : '+'}
-                      {change} {unit}
+                      {withMeter(m.change_amount, unit)}
                     </td>
                     <td className="td">{m.reference_order_id ? `#${m.reference_order_id}` : '—'}</td>
                     <td className="td">{m.created_by_name}</td>
