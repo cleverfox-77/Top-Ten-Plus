@@ -6,7 +6,7 @@ import { Search, UserPlus, Plus, Trash2, Wand2, ScanLine } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { t } from '@/lib/labels'
-import { GARMENTS, GARMENT_ORDER, StyleControl } from '@/lib/garments'
+import { GARMENTS, GARMENT_ORDER, StyleControl, MeasurementField } from '@/lib/garments'
 import { ALL_UNITS, UNIT_LABELS, fromBase, round2 } from '@/lib/units'
 import type { Customer, Fabric, FabricUnit, GarmentType, NewOrderItemInput } from '@/lib/types'
 import { PageHeader, Field, Spinner } from '@/components/ui'
@@ -329,6 +329,16 @@ function GarmentCard({
   const toast = useToast()
   const def = GARMENTS[item.garment_type]
 
+  // Body / Cuff carry two extra boxes that stack vertically under the main box
+  // (matching the shop's paper form) instead of sitting in their own columns.
+  const STACK_CHILDREN: Record<string, string[]> = {
+    body: ['body_2', 'body_3'],
+    cuff: ['cuff_2', 'cuff_3']
+  }
+  const childKeys = new Set(Object.values(STACK_CHILDREN).flat())
+  const fieldByKey = new Map(def.measurements.map((f) => [f.key, f]))
+  const measureColumns = def.measurements.filter((f) => !childKeys.has(f.key))
+
   const setType = (type: GarmentType): void => {
     onChange({ garment_type: type, measurements: {}, style_options: {} })
   }
@@ -430,19 +440,31 @@ function GarmentCard({
             <Wand2 size={14} /> Use last measurements
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          {def.measurements.map((f) => (
-            <div key={f.key}>
-              <label className="mb-1 block text-xs text-gray-500">{f.label}</label>
-              <input
-                type="number"
-                step="0.25"
-                className="input"
-                value={item.measurements[f.key] ?? ''}
-                onChange={(e) => setMeasure(f.key, e.target.value)}
-              />
-            </div>
-          ))}
+        <div className="grid grid-cols-3 items-start gap-3">
+          {measureColumns.map((f) => {
+            const children = (STACK_CHILDREN[f.key] ?? [])
+              .map((k) => fieldByKey.get(k))
+              .filter((x): x is MeasurementField => Boolean(x))
+            const renderField = (fld: MeasurementField): JSX.Element => (
+              <div key={fld.key}>
+                <label className="mb-1 block text-xs text-gray-500">{fld.label}</label>
+                <input
+                  type="number"
+                  step="0.25"
+                  className="input"
+                  value={item.measurements[fld.key] ?? ''}
+                  onChange={(e) => setMeasure(fld.key, e.target.value)}
+                />
+              </div>
+            )
+            if (children.length === 0) return renderField(f)
+            return (
+              <div key={f.key} className="space-y-2">
+                {renderField(f)}
+                {children.map((cf) => renderField(cf))}
+              </div>
+            )
+          })}
         </div>
       </div>
 
