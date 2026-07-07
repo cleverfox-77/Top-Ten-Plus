@@ -2,10 +2,16 @@
 
 import { and, desc, eq, gt, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
 import { db } from '@/db'
-import { orders, orderItems, customers, users } from '@/db/schema'
+import { orders, orderItems, customers, users, smsLog } from '@/db/schema'
 import { requireAuth } from '@/lib/session'
 import { run } from '@/lib/result'
 import { hydrate, createOrderCore, recordPaymentCore } from '@/lib/order-core'
+import {
+  GATEWAY_ENABLED,
+  dispatch,
+  buildReadyMessage,
+  buildDeliveredMessage
+} from '@/lib/sms-util'
 import type { Order, OrderStatus, GarmentType, OrderFilters } from '@/lib/types'
 
 export async function getOrder(id: number) {
@@ -107,8 +113,28 @@ export async function updateOrderStatus(id: number, status: OrderStatus) {
       .update(orders)
       .set({ status })
       .where(eq(orders.id, id))
-      .returning({ id: orders.id })
+      .returning({ id: orders.id, customer_id: orders.customer_id })
     if (!row) throw new Error('Order not found')
+
+    // Auto-notify the customer when their garment is ready or delivered.
+    if (status === 'ready_for_pickup' || status === 'delivered') {
+      const [c] = await db
+        .select({ phone: customers.phone })
+        .from(customers)
+        .where(eq(customers.id, row.customer_id))
+        .limit(1)
+      const message =
+        status === 'ready_for_pickup' ? buildReadyMessage(id) : buildDeliveredMessage(id)
+      const smsStatus = GATEWAY_ENABLED && c?.phone ? await dispatch(c.phone, message) : 'stubbed'
+      await db.insert(smsLog).values({
+        customer_id: row.customer_id,
+        order_id: id,
+        message,
+        type: status === 'ready_for_pickup' ? 'ready_notice' : 'delivered_notice',
+        status: smsStatus
+      })
+    }
+
     return (await hydrate(id))!
   })
 }

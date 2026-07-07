@@ -89,6 +89,10 @@ function JobHalf({
   }
   const childKeys = new Set(Object.values(STACK_CHILDREN).flat())
   const measureColumns = def.measurements.filter((m) => !childKeys.has(m.key))
+  // Main measurements share one row; F / B / XB drop to a small row below.
+  const SECONDARY_KEYS = new Set(['fd', 'cb', 'xb'])
+  const primaryColumns = measureColumns.filter((m) => !SECONDARY_KEYS.has(m.key))
+  const secondaryColumns = measureColumns.filter((m) => SECONDARY_KEYS.has(m.key))
   const mVal = (key: string): string => {
     const v = item.measurements[key]
     return v === undefined || v === null || v === '' ? '' : toBnDigits(String(v))
@@ -104,33 +108,36 @@ function JobHalf({
     ? 'bg-gray-900 text-white'
     : 'border-2 border-gray-900 text-gray-900'
 
+  const cell = (m: { key: string; label: string }, grow: boolean): JSX.Element => {
+    const children = STACK_CHILDREN[m.key] ?? []
+    return (
+      <div key={m.key} className={`text-center ${grow ? 'flex-1' : ''}`} style={grow ? undefined : { width: 56 }}>
+        <div className="border border-gray-500 bg-gray-100 px-1 py-0.5 text-[9px] leading-tight text-gray-700">
+          {bn(m.key)}
+        </div>
+        <div className="border border-t-0 border-gray-500 px-1 py-1 text-sm font-bold" style={{ minHeight: 22 }}>
+          {mVal(m.key)}
+        </div>
+        {children.map((c) => (
+          <div
+            key={c}
+            className="border border-t-0 border-gray-500 px-1 py-1 text-sm font-bold"
+            style={{ minHeight: 22 }}
+          >
+            {mVal(c)}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   const Measurements = (
     <div className="mb-2">
       <div className="mb-1 text-[10px] font-bold text-gray-700">মাপ (ইঞ্চি) · Measurements</div>
-      <div className="flex flex-wrap gap-x-1 gap-y-1">
-        {measureColumns.map((m) => {
-          const children = STACK_CHILDREN[m.key] ?? []
-          return (
-            <div key={m.key} className="min-w-[46px] text-center">
-              <div className="border border-gray-500 bg-gray-100 px-1 py-0.5 text-[9px] leading-tight text-gray-700">
-                {bn(m.key)}
-              </div>
-              <div className="border border-t-0 border-gray-500 px-1 py-1 text-sm font-bold" style={{ minHeight: 22 }}>
-                {mVal(m.key)}
-              </div>
-              {children.map((c) => (
-                <div
-                  key={c}
-                  className="border border-t-0 border-gray-500 px-1 py-1 text-sm font-bold"
-                  style={{ minHeight: 22 }}
-                >
-                  {mVal(c)}
-                </div>
-              ))}
-            </div>
-          )
-        })}
-      </div>
+      <div className="flex items-start gap-1">{primaryColumns.map((m) => cell(m, true))}</div>
+      {secondaryColumns.length > 0 && (
+        <div className="mt-1 flex items-start gap-1">{secondaryColumns.map((m) => cell(m, false))}</div>
+      )}
     </div>
   )
 

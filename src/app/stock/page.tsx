@@ -721,6 +721,10 @@ function BulkFabricModal({
     }
   }, [open])
 
+  const grandTotal = round2(
+    rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.cost_price_per_unit) || 0), 0)
+  )
+
   const patchRow = (key: number, patch: Partial<BulkRow>): void =>
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)))
   const addRow = (): void => setRows((prev) => [...prev, blankBulkRow()])
@@ -813,6 +817,7 @@ function BulkFabricModal({
               <th className="px-1 py-1 text-right">{t('quantity')}</th>
               <th className="px-1 py-1 text-right">Cost/unit</th>
               <th className="px-1 py-1 text-right">Sell/unit</th>
+              <th className="px-1 py-1 text-right">Total</th>
               <th className="px-1 py-1"></th>
             </tr>
           </thead>
@@ -883,7 +888,10 @@ function BulkFabricModal({
                     onChange={(e) => patchRow(r.key, { selling_price_per_unit: e.target.value })}
                   />
                 </td>
-                <td className="px-1 py-1 text-center">
+                <td className="whitespace-nowrap px-1 py-1 text-right align-middle font-medium text-gray-800">
+                  {bdt(round2((Number(r.quantity) || 0) * (Number(r.cost_price_per_unit) || 0)))}
+                </td>
+                <td className="px-1 py-1 text-center align-middle">
                   <button
                     type="button"
                     className="btn-ghost px-2 text-red-600"
@@ -899,9 +907,15 @@ function BulkFabricModal({
         </table>
       </div>
 
-      <button className="btn-secondary mt-3" onClick={addRow}>
-        <Plus size={16} /> Add row
-      </button>
+      <div className="mt-3 flex items-center justify-between">
+        <button className="btn-secondary" onClick={addRow}>
+          <Plus size={16} /> Add row
+        </button>
+        <div className="text-sm">
+          <span className="text-gray-500">Total stock value: </span>
+          <span className="text-lg font-bold text-gray-900">{bdt(grandTotal)}</span>
+        </div>
+      </div>
 
       <div className="mt-5 flex justify-end gap-2">
         <button className="btn-secondary" onClick={onClose}>

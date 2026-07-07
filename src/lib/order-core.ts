@@ -12,7 +12,7 @@ import {
 } from '@/db/schema'
 import { newOrderSchema, recordPaymentSchema } from '@/lib/validation'
 import { toBase, round2 } from '@/lib/units'
-import { GATEWAY_ENABLED, buildConfirmationMessage } from '@/lib/sms-util'
+import { GATEWAY_ENABLED, buildConfirmationMessage, dispatch } from '@/lib/sms-util'
 import type { Order, OrderItem, Payment } from '@/lib/types'
 
 /** Load a full order with joined customer/staff names, items and payments. */
@@ -165,19 +165,27 @@ export async function createOrderCore(userId: number, input: unknown): Promise<O
       }
     }
 
-    await tx.insert(smsLog).values({
-      customer_id: data.customer_id,
-      order_id: orderId,
-      message: buildConfirmationMessage(orderId, totalPrice, data.expected_delivery_date),
-      type: 'order_confirmation',
-      status: GATEWAY_ENABLED ? 'sent' : 'stubbed'
-    })
-
     return orderId
   })
 
   const created = await hydrate(newId)
   if (!created) throw new Error('Order created but could not be loaded')
+
+  // Best-effort confirmation SMS, sent outside the transaction so a gateway
+  // hiccup never rolls back a saved order.
+  const confirmation = buildConfirmationMessage(newId, totalPrice, data.expected_delivery_date)
+  const status =
+    GATEWAY_ENABLED && created.customer_phone
+      ? await dispatch(created.customer_phone, confirmation)
+      : 'stubbed'
+  await db.insert(smsLog).values({
+    customer_id: data.customer_id,
+    order_id: newId,
+    message: confirmation,
+    type: 'order_confirmation',
+    status
+  })
+
   return created
 }
 

@@ -163,7 +163,7 @@ export interface SmsLog {
   customer_phone?: string
   order_id: number | null
   message: string
-  type: 'order_confirmation' | 'ready_notice'
+  type: 'order_confirmation' | 'ready_notice' | 'delivered_notice'
   status: 'sent' | 'failed' | 'stubbed'
   sent_at: string
 }

@@ -189,7 +189,7 @@ export const smsLog = pgTable('sms_log', {
     .references(() => customers.id),
   order_id: integer('order_id').references(() => orders.id),
   message: text('message').notNull(),
-  type: text('type').$type<'order_confirmation' | 'ready_notice'>().notNull(),
+  type: text('type').$type<'order_confirmation' | 'ready_notice' | 'delivered_notice'>().notNull(),
   status: text('status').$type<'sent' | 'failed' | 'stubbed'>().notNull(),
   sent_at: timestamp('sent_at', { mode: 'string' }).notNull().defaultNow()
 })

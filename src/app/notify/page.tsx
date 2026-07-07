@@ -142,7 +142,11 @@ export default function NotifyPage(): JSX.Element {
                     <div className="text-xs text-gray-400">{s.customer_phone}</div>
                   </td>
                   <td className="td text-gray-600">
-                    {s.type === 'order_confirmation' ? 'Confirmation' : 'Ready notice'}
+                    {s.type === 'order_confirmation'
+                      ? 'Confirmation'
+                      : s.type === 'delivered_notice'
+                        ? 'Delivered'
+                        : 'Ready notice'}
                   </td>
                   <td className="td max-w-md text-xs text-gray-600">{s.message}</td>
                   <td className="td">

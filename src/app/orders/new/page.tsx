@@ -338,6 +338,10 @@ function GarmentCard({
   const childKeys = new Set(Object.values(STACK_CHILDREN).flat())
   const fieldByKey = new Map(def.measurements.map((f) => [f.key, f]))
   const measureColumns = def.measurements.filter((f) => !childKeys.has(f.key))
+  // The main measurements sit on one row; F / B / XB drop to a row below.
+  const SECONDARY_KEYS = new Set(['fd', 'cb', 'xb'])
+  const primaryColumns = measureColumns.filter((f) => !SECONDARY_KEYS.has(f.key))
+  const secondaryColumns = measureColumns.filter((f) => SECONDARY_KEYS.has(f.key))
 
   const setType = (type: GarmentType): void => {
     onChange({ garment_type: type, measurements: {}, style_options: {} })
@@ -440,32 +444,54 @@ function GarmentCard({
             <Wand2 size={14} /> Use last measurements
           </button>
         </div>
-        <div className="grid grid-cols-3 items-start gap-3">
-          {measureColumns.map((f) => {
+        {/* Main measurements — single row. Body / Cuff carry extra unlabeled
+            boxes stacked underneath. */}
+        <div className="flex flex-wrap items-start gap-2">
+          {primaryColumns.map((f) => {
             const children = (STACK_CHILDREN[f.key] ?? [])
               .map((k) => fieldByKey.get(k))
               .filter((x): x is MeasurementField => Boolean(x))
-            const renderField = (fld: MeasurementField): JSX.Element => (
-              <div key={fld.key}>
-                <label className="mb-1 block text-xs text-gray-500">{fld.label}</label>
+            return (
+              <div key={f.key} className="min-w-[84px] flex-1">
+                <label className="mb-1 block text-xs text-gray-500">{f.label}</label>
                 <input
                   type="number"
                   step="0.25"
                   className="input"
-                  value={item.measurements[fld.key] ?? ''}
-                  onChange={(e) => setMeasure(fld.key, e.target.value)}
+                  value={item.measurements[f.key] ?? ''}
+                  onChange={(e) => setMeasure(f.key, e.target.value)}
                 />
-              </div>
-            )
-            if (children.length === 0) return renderField(f)
-            return (
-              <div key={f.key} className="space-y-2">
-                {renderField(f)}
-                {children.map((cf) => renderField(cf))}
+                {children.map((cf) => (
+                  <input
+                    key={cf.key}
+                    type="number"
+                    step="0.25"
+                    className="input mt-2"
+                    aria-label={cf.label}
+                    value={item.measurements[cf.key] ?? ''}
+                    onChange={(e) => setMeasure(cf.key, e.target.value)}
+                  />
+                ))}
               </div>
             )
           })}
         </div>
+        {secondaryColumns.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {secondaryColumns.map((f) => (
+              <div key={f.key} className="w-24">
+                <label className="mb-1 block text-xs text-gray-500">{f.label}</label>
+                <input
+                  type="number"
+                  step="0.25"
+                  className="input"
+                  value={item.measurements[f.key] ?? ''}
+                  onChange={(e) => setMeasure(f.key, e.target.value)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {(() => {
