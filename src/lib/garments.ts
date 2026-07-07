@@ -141,7 +141,8 @@ const pant: GarmentDef = {
         { value: '7', label: '7' },
         { value: '8', label: '8' }
       ]
-    }
+    },
+    note()
   ]
 }
 
@@ -171,14 +172,7 @@ const shirt: GarmentDef = {
 const panjabi: GarmentDef = {
   type: 'panjabi',
   measurements: shirt.measurements,
-  style: [
-    { type: 'toggle', key: 'one_sata_panjabi', label: '1 Sata Panjabi' },
-    {
-      type: 'toggle',
-      key: 'round_sherwani_band',
-      label: 'Round sherwani band, half inch, 4 button'
-    }
-  ]
+  style: [note()]
 }
 
 export const GARMENTS: Record<GarmentType, GarmentDef> = {
