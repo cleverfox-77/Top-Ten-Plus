@@ -26,7 +26,9 @@ export function Barcode({
         width: 1.6,
         displayValue: true,
         fontSize: 12,
-        margin: 0
+        textMargin: 1,
+        margin: 0,
+        marginBottom: 4
       })
       // Give the generated SVG a viewBox so it can scale down proportionally to
       // fit a narrow container (e.g. a tight job-card cell) instead of

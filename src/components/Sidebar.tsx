@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import { t, ROLE_LABELS } from '@/lib/labels'
+import Logo from '@/components/Logo'
 
 interface NavItem {
   href: string
@@ -64,13 +65,9 @@ export default function Sidebar(): JSX.Element {
 
   return (
     <aside className="flex w-60 shrink-0 flex-col bg-gray-900 text-gray-200 no-print">
-      <div className="flex items-center gap-2 border-b border-white/10 px-5 py-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 font-bold text-white">
-          T
-        </div>
-        <div>
-          <div className="font-bold leading-tight">New Top Ten Plus</div>
-          <div className="text-[11px] text-gray-400">Tailors • Fabrics • Fashion</div>
+      <div className="border-b border-white/10 p-3">
+        <div className="flex items-center justify-center rounded-lg bg-white p-2">
+          <Logo className="block max-h-16 w-auto max-w-full" />
         </div>
       </div>
 

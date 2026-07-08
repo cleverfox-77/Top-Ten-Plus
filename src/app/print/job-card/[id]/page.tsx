@@ -201,9 +201,13 @@ function JobHalf({
           <div className="text-[9px] text-gray-500">বিক্রেতা</div>
           <div>{order.created_by_name}</div>
         </div>
-        <div className="min-w-0">
-          <div className="text-[9px] text-gray-500">জব কোড</div>
-          <Barcode value={`TTP-${order.id}-${item.id}`} height={22} className="w-full" />
+      </div>
+
+      {/* Job code barcode on its own line so the printed value never clips. */}
+      <div className="mb-2 flex items-center gap-2">
+        <span className="text-[9px] text-gray-500">জব কোড</span>
+        <div style={{ width: 170 }}>
+          <Barcode value={`TTP-${order.id}-${item.id}`} height={24} />
         </div>
       </div>
 
