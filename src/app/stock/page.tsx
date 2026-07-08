@@ -307,8 +307,10 @@ function FabricModal({
     try {
       const payload = {
         product_id: form.product_id.trim(),
-        name: form.name.trim(),
-        color: form.color.trim() || null,
+        // On create the name/colour fields are hidden — the barcode doubles as
+        // the name so the row still has an identifier everywhere it's listed.
+        name: fabric ? form.name.trim() : form.product_id.trim(),
+        color: fabric ? form.color.trim() || null : null,
         unit: form.unit,
         quantity: Number(form.quantity) || 0,
         cost_price_per_unit:
@@ -344,20 +346,24 @@ function FabricModal({
             placeholder="Scan or type barcode"
           />
         </Field>
-        <Field label={`${t('name')} *`}>
-          <input
-            className="input"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-        </Field>
-        <Field label={t('color')}>
-          <input
-            className="input"
-            value={form.color}
-            onChange={(e) => setForm({ ...form, color: e.target.value })}
-          />
-        </Field>
+        {fabric && (
+          <>
+            <Field label={`${t('name')} *`}>
+              <input
+                className="input"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </Field>
+            <Field label={t('color')}>
+              <input
+                className="input"
+                value={form.color}
+                onChange={(e) => setForm({ ...form, color: e.target.value })}
+              />
+            </Field>
+          </>
+        )}
         <Field label={t('unit')}>
           <select
             className="input"
@@ -673,8 +679,6 @@ function AdjustModal({
 interface BulkRow {
   key: number
   product_id: string
-  name: string
-  color: string
   unit: FabricUnit
   quantity: string
   cost_price_per_unit: string
@@ -685,8 +689,6 @@ let bulkKey = 0
 const blankBulkRow = (): BulkRow => ({
   key: ++bulkKey,
   product_id: '',
-  name: '',
-  color: '',
   unit: 'gaz',
   quantity: '',
   cost_price_per_unit: '',
@@ -732,10 +734,11 @@ function BulkFabricModal({
     setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.key !== key) : prev))
 
   const save = async (): Promise<void> => {
-    // Only rows with at least a product id + name are submitted.
-    const filled = rows.filter((r) => r.product_id.trim() && r.name.trim())
+    // Only rows with a product id / barcode are submitted; the barcode doubles
+    // as the fabric name (name/colour aren't collected here).
+    const filled = rows.filter((r) => r.product_id.trim())
     if (filled.length === 0) {
-      toast.error('Fill in at least one fabric (barcode + name)')
+      toast.error('Fill in at least one barcode')
       return
     }
     setBusy(true)
@@ -746,8 +749,8 @@ function BulkFabricModal({
         payment_type: paymentType,
         items: filled.map((r) => ({
           product_id: r.product_id.trim(),
-          name: r.name.trim(),
-          color: r.color.trim() || null,
+          name: r.product_id.trim(),
+          color: null,
           unit: r.unit,
           quantity: Number(r.quantity) || 0,
           cost_price_per_unit: r.cost_price_per_unit === '' ? null : Number(r.cost_price_per_unit),
@@ -811,8 +814,6 @@ function BulkFabricModal({
           <thead className="sticky top-0 bg-white">
             <tr className="text-left text-xs uppercase text-gray-500">
               <th className="px-1 py-1">{t('product_id')} *</th>
-              <th className="px-1 py-1">{t('name')} *</th>
-              <th className="px-1 py-1">{t('color')}</th>
               <th className="px-1 py-1">{t('unit')}</th>
               <th className="px-1 py-1 text-right">{t('quantity')}</th>
               <th className="px-1 py-1 text-right">Cost/unit</th>
@@ -830,20 +831,6 @@ function BulkFabricModal({
                     value={r.product_id}
                     placeholder="Barcode"
                     onChange={(e) => patchRow(r.key, { product_id: e.target.value })}
-                  />
-                </td>
-                <td className="px-1 py-1">
-                  <input
-                    className="input"
-                    value={r.name}
-                    onChange={(e) => patchRow(r.key, { name: e.target.value })}
-                  />
-                </td>
-                <td className="px-1 py-1">
-                  <input
-                    className="input"
-                    value={r.color}
-                    onChange={(e) => patchRow(r.key, { color: e.target.value })}
                   />
                 </td>
                 <td className="px-1 py-1">

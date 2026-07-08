@@ -6,7 +6,7 @@ import { Scissors } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useToast } from '@/lib/toast'
 import { bn } from '@/lib/labels'
-import { GARMENTS, describeStyle } from '@/lib/garments'
+import { GARMENTS } from '@/lib/garments'
 import { unitToMeter } from '@/lib/units'
 import { fmtDate, nowDateTime, toBnDigits } from '@/lib/format'
 import type { Order, OrderItem } from '@/lib/types'
@@ -97,13 +97,14 @@ function JobHalf({
     const v = item.measurements[key]
     return v === undefined || v === null || v === '' ? '' : toBnDigits(String(v))
   }
-  const styles = describeStyle(item.garment_type, item.style_options)
   const noteVal = item.style_options?.note
   const note = typeof noteVal === 'string' ? noteVal.trim() : ''
 
   const isCutting = copy === 'cutting'
-  const copyLabel = isCutting ? 'কাটিং মাস্টার কপি' : 'সেলাই মাস্টার কপি'
-  const copyEn = isCutting ? 'Cutting Master' : 'Stitching Master'
+  // Labels swapped: the upper copy is the Stitching Master, the lower (which
+  // carries the measurements) is the Cutting Master.
+  const copyLabel = isCutting ? 'সেলাই মাস্টার কপি' : 'কাটিং মাস্টার কপি'
+  const copyEn = isCutting ? 'Stitching Master' : 'Cutting Master'
   const bandClass = isCutting
     ? 'bg-gray-900 text-white'
     : 'border-2 border-gray-900 text-gray-900'
@@ -138,19 +139,6 @@ function JobHalf({
       {secondaryColumns.length > 0 && (
         <div className="mt-1 flex items-start gap-1">{secondaryColumns.map((m) => cell(m, false))}</div>
       )}
-    </div>
-  )
-
-  const Style = styles.length > 0 && (
-    <div className="mb-2">
-      <div className="mb-1 text-[10px] font-bold text-gray-700">স্টাইল · Style</div>
-      <div className="flex flex-wrap gap-1">
-        {styles.map((st, i) => (
-          <span key={i} className="border border-gray-400 px-1.5 py-0.5 text-[11px]">
-            {toBnDigits(st)}
-          </span>
-        ))}
-      </div>
     </div>
   )
 
@@ -219,16 +207,8 @@ function JobHalf({
         </div>
       </div>
 
-      {/* Measurements live on the lower (Stitching) copy only; the upper
-          (Cutting) copy carries style + fabric + note. */}
-      {isCutting ? (
-        <>{Style}</>
-      ) : (
-        <>
-          {Measurements}
-          {Style}
-        </>
-      )}
+      {/* Measurements print on the lower copy (Cutting Master) only. */}
+      {!isCutting && Measurements}
 
       {/* Fabric — on both copies */}
       {item.fabric_name && (
@@ -254,7 +234,7 @@ function JobHalf({
       {/* Role-specific blank instruction box */}
       <div>
         <div className="mb-0.5 text-[9px] font-semibold text-gray-500">
-          {isCutting ? 'কাটিং নির্দেশনা' : 'সেলাই নির্দেশনা'}
+          {isCutting ? 'সেলাই নির্দেশনা' : 'কাটিং নির্দেশনা'}
         </div>
         <div className="h-7 border border-gray-300" />
       </div>
