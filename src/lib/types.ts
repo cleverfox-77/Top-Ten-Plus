@@ -37,6 +37,8 @@ export interface Fabric {
   id: number
   product_id: string
   name: string
+  brand: string | null
+  style_name: string | null
   color: string | null
   unit: FabricUnit // preferred display/entry unit
   quantity_base: number // stored internally in centimeters

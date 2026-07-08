@@ -52,6 +52,8 @@ export const fabrics = pgTable('fabrics', {
   id: serial('id').primaryKey(),
   product_id: text('product_id').notNull().unique(),
   name: text('name').notNull(),
+  brand: text('brand'),
+  style_name: text('style_name'),
   color: text('color'),
   unit: text('unit').$type<FabricUnit>().notNull().default('gaz'),
   quantity_base: doublePrecision('quantity_base').notNull().default(0), // centimeters

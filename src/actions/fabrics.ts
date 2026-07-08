@@ -78,6 +78,8 @@ export async function createFabric(input: unknown) {
         .values({
           product_id: data.product_id,
           name: data.name,
+          brand: data.brand ?? null,
+          style_name: data.style_name ?? null,
           color: data.color ?? null,
           unit: data.unit,
           quantity_base: baseQty,
@@ -131,6 +133,8 @@ export async function createFabricsBulk(input: unknown) {
           .values({
             product_id: it.product_id,
             name: it.name,
+            brand: it.brand ?? null,
+            style_name: it.style_name ?? null,
             color: it.color ?? null,
             unit: it.unit,
             quantity_base: baseQty,
@@ -175,6 +179,8 @@ export async function updateFabric(id: number, input: unknown) {
       .set({
         product_id: data.product_id,
         name: data.name,
+        brand: data.brand ?? null,
+        style_name: data.style_name ?? null,
         color: data.color ?? null,
         unit: data.unit,
         cost_price_per_unit: data.cost_price_per_unit ?? null,

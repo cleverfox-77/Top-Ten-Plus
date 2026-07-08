@@ -27,6 +27,8 @@ const paymentTypeSchema = z.enum(['cash', 'due'])
 export const fabricSchema = z.object({
   product_id: z.string().trim().min(1, 'Product ID / barcode is required'),
   name: z.string().trim().min(1, 'Fabric name is required'),
+  brand: z.string().trim().nullable().optional(),
+  style_name: z.string().trim().nullable().optional(),
   color: z.string().trim().nullable().optional(),
   unit: fabricUnitSchema,
   quantity: z.number().nonnegative('Quantity cannot be negative'),
@@ -43,6 +45,8 @@ export const fabricSchema = z.object({
 export const bulkFabricItemSchema = z.object({
   product_id: z.string().trim().min(1, 'Product ID / barcode is required'),
   name: z.string().trim().min(1, 'Fabric name is required'),
+  brand: z.string().trim().nullable().optional(),
+  style_name: z.string().trim().nullable().optional(),
   color: z.string().trim().nullable().optional(),
   unit: fabricUnitSchema,
   quantity: z.number().nonnegative('Quantity cannot be negative'),

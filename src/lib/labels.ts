@@ -100,6 +100,8 @@ const D: Record<string, Label> = {
 
   // --- Fabric / stock ---
   product_id: { en: 'Product ID / Barcode', bn: 'প্রোডাক্ট আইডি' },
+  brand: { en: 'Brand', bn: 'ব্র্যান্ড' },
+  style_name: { en: 'Style Name', bn: 'স্টাইল নাম' },
   color: { en: 'Color', bn: 'রং' },
   quantity: { en: 'Quantity', bn: 'পরিমাণ' },
   unit: { en: 'Unit', bn: 'একক' },
